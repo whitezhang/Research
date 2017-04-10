@@ -5,18 +5,35 @@ import argparse
 
 debug = False
 model_name = ''
+random_top = 9
+noise_degree = 5
+n_noise_observation = 1
+
+def adapt_noise_fea(basic_fea, n_fea):
+    for i in range(basic_fea.shape[1]):
+        if i >= n_fea:
+            basic_fea[0, i] = basic_fea[0, i-n_fea] ** 2
+    return basic_fea
 
 def gen_data(n_fea, n_sample, n_noise):
-    basic_fea = np.random.randint(9, size=(1, n_fea+n_noise)) + 1
+    basic_fea = np.random.randint(random_top, size=(1, n_fea+n_noise)) + 1
+    if True:
+        basic_fea = adapt_noise_fea(basic_fea, n_fea)
     noised_fea = np.asmatrix(basic_fea)
     fea = np.asmatrix(basic_fea[:, :n_fea])
 
-    basic_x = np.random.randint(9, size=(n_sample, n_fea+n_noise)) + 1
+    basic_x = np.random.randint(random_top, size=(n_sample, n_fea+n_noise)) + 1
     noised_x = np.asmatrix(basic_x)
     x = np.asmatrix(basic_x[:, :n_fea])
-    noise = np.random.random(size=n_sample)
+    noise = np.random.random(size=n_sample) * noise_degree
 
-    y = fea * x.T + noise
+    y = fea * x.T
+    # Adapt noise observation
+    for i in range(y.shape[1]):
+        eps = np.random.randint(10)
+        if eps < n_noise_observation:
+            noise = 1. * np.random.randint(1, 3) * y[0, i] / 10
+            y[0, i] += noise
     return noised_fea, fea, noised_x, x, y
 
 def print_gen_data(n_W, t_W, n_X, t_X, Y):
