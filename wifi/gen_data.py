@@ -2,12 +2,15 @@ import sys
 import random
 import numpy as np
 import argparse
+import fw
 
 debug = False
 model_name = ''
 random_top = 9
 noise_degree = 5
 n_noise_observation = 1
+
+VALID_MODEL = ['LinearRegression', 'LogisticRegression']
 
 def adapt_noise_fea(basic_fea, n_fea):
     for i in range(basic_fea.shape[1]):
@@ -95,15 +98,20 @@ def succ_ratio(tgt_fea, trained_fea, n_fea):
     LN = 1. * (L - n_fea)
     print '%lf\t%lf\t%lf\t%lf\t%lf\t%lf' % (fea_succ_ratio_1/LF, fea_succ_ratio_01/LF, fea_succ_ratio_001/LF, noise_succ_ratio_1/LN, noise_succ_ratio_01/LN, noise_succ_ratio_001/LN)
 
-def build_and_fit(X, Y):
-    if model_name == 1:
+def build_and_fit(X, Y, W=None):
+    if model_name == 0:
         from sklearn import linear_model
         model = linear_model.LinearRegression()
         model.fit(X, Y)
         return model
-    elif model_name == 2:
+    elif model_name == 1:
         from sklearn.linear_model import LogistricRegression
         model = LogisticRegression(C=1.0, penalty='l1')
+        model.fit(X, Y)
+        return model
+    elif model_name == 2:
+        from sklearn import linear_model
+        model = linear_model.LogisticRegression(C=1.0, multi_class='ovr', penalty='l1')
         model.fit(X, Y)
         return model
 
@@ -116,30 +124,59 @@ def train(n_W, t_W, n_X, t_X, Y):
     if debug:
         print '\n\t\tmodel coefs', model.coef_
         print '\t\tmodel intercepts:', model.intercept_
-        #print np.dot(n_X, model.coef_.T) + model.intercept_
-
     succ_ratio(n_W.A.flatten(), model.coef_, t_W.shape[1])
-    #model = SelectFromModel(lsvc, prefit=True)
-    #X_new = model.transform(X)
-    #print X_new
 
-def main():
-    argsparser =  argparse.ArgumentParser()
-    argsparser.add_argument('-f', '--fea', type=int, help='number of features', default=3)
-    argsparser.add_argument('-s', '--sample', type=int, help='number of samples', default=2)
-    argsparser.add_argument('-n', '--noise', type=int, help='number of noise', default=1)
-    argsparser.add_argument('-d', '--debug', type=bool, help='debug mode', default=False)
-    argsparser.add_argument('-fr', '--fea_range', type=str, help='range of features[1-100]')
-    argsparser.add_argument('-sr', '--sample_range', type=str, help='range of samples[1-100]')
-    argsparser.add_argument('-nr', '--noise_range', type=str, help='range of noise[1-100]')
-    argsparser.add_argument('-na', '--model_name', type=int, help='Model\t1.LinearRegression\t2.LogisticRegression', default=1)
-    args = argsparser.parse_args()
+def eva_real_data():
+    def wifi_stat(wflist):
+        pass
 
-    global debug, model_name
+    def output_feature(model, dv):
+        feature_names = dv.feature_names_
+        coefs = model.coef_
+        intercepts = model.intercept_
+        for coef in coefs:
+            ptr = []
+            for idx in range(len(coef)):
+                if coef[idx] == 0:
+                    continue
+                ptr.append(feature_names[idx] + ':' + str(coef[idx]))
+            print '|'.join(ptr)
+
+    from sklearn.feature_extraction import DictVectorizer
+    from sklearn.model_selection import KFold
+    dv = DictVectorizer()
+    kf = KFold(n_splits=10, shuffle=True)
+    wflist = []
+    labels = []
+
+    for line in fw.get_data(sys.stdin, '\t'):
+        wf = line[0]
+        label = line[1]
+        wf = fw.str_to_wf(wf, normed=False)
+        wflist.append(wf)
+        labels.append(label)
+
+    for train, test in kf.split(wflist):
+        train_X = [wflist[i] for i in train]
+        train_Y = [labels[i] for i in train]
+        train_X = dv.fit_transform(train_X)
+        train_Y = np.asarray(train_Y)
+
+        test_X = [wflist[i] for i in test]
+        test_Y = [labels[i] for i in test]
+        test_X = dv.fit_transform(test_X)
+        test_Y = np.asarray(test_Y)
+
+        model = build_and_fit(train_X, train_Y)
+        #debug = True
+        if debug:
+            output_feature(model, dv)
+        print model.predict(train_X)
+
+def mode_gen_data(args):
     range_fea = None
     range_sample = None
     range_noise = None
-    model_name = args.model_name
 
     if args.fea_range != None:
         range_fea = args.fea_range.split('-')
@@ -150,7 +187,6 @@ def main():
     n_fea = args.fea
     n_sample = args.sample
     n_noise = args.noise
-    debug = args.debug
 
     if range_fea != None:
         s, e = map(int, range_fea)
@@ -182,6 +218,37 @@ def main():
         train(n_W, t_W, n_X, t_X, Y)
         if debug:
             print_gen_data(n_W, t_W, n_X, t_X, Y)
+
+def mode_eva_data(args):
+    eva_real_data()
+
+def main():
+    argsparser =  argparse.ArgumentParser()
+
+    argsparser.add_argument('-m', '--mode', type=int, help='Mode\t1.gen data\t2.Eva real data')
+
+    argsparser.add_argument('-f', '--fea', type=int, help='number of features', default=3)
+    argsparser.add_argument('-s', '--sample', type=int, help='number of samples', default=2)
+    argsparser.add_argument('-n', '--noise', type=int, help='number of noise', default=1)
+    argsparser.add_argument('-d', '--debug', type=bool, help='debug mode', default=False)
+    argsparser.add_argument('-fr', '--fea_range', type=str, help='range of features[1-100]')
+    argsparser.add_argument('-sr', '--sample_range', type=str, help='range of samples[1-100]')
+    argsparser.add_argument('-nr', '--noise_range', type=str, help='range of noise[1-100]')
+    argsparser.add_argument('-na', '--model_name', type=int, help='Model\t0.LinearRegression\t1.LogisticRegression', default=1)
+
+    args = argsparser.parse_args()
+
+    global debug, model_name
+    mode = args.mode
+    model_name = args.model_name
+    debug = args.debug
+
+    if mode == 1:
+        mode_gen_data(args)
+    elif mode == 2:
+        mode_eva_data(args)
+    else:
+        print 'Pick the mode[-m]\t1.gen data\t2.Eva real data'
 
 if __name__ == '__main__':
     main()
