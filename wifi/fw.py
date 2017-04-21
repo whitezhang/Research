@@ -27,7 +27,8 @@ def str_to_wf(wf_list, convertf=convertf_100, normed=True):
             if len(wf) < 2 or len(wf[1]) == 0:
                 continue
             #k = long(wf[0], base=16)
-            k = wf[0]
+            #k = wf[0]
+            k = wf[0].replace(':', '')
             if k == 0:
                 continue
             #v = np.float(100 - int(wf[1]))
