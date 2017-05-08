@@ -113,9 +113,10 @@ def build_and_fit(X, Y, W=None):
         model = LogisticRegression(C=1.0, penalty='l1')
         model.fit(X, Y)
         return model
+    # multi class
     elif model_name == 2:
         from sklearn import linear_model
-        model = linear_model.LogisticRegression(C=1.0, multi_class='ovr', penalty='l1')
+        model = linear_model.LogisticRegression(C=1.0, multi_class='ovr', penalty='l2')
         model.fit(X, Y)
         return model
 

@@ -24,18 +24,28 @@ def str_to_wf(wf_list, convertf=convertf_100, normed=True):
     wfs = [p.split(';') for p in wf_list.split('|')]
     for wf in wfs:
         try:
-            if len(wf) < 2 or len(wf[1]) == 0:
-                continue
-            #k = long(wf[0], base=16)
-            #k = wf[0]
-            k = wf[0].replace(':', '')
-            if k == 0:
-                continue
-            #v = np.float(100 - int(wf[1]))
-            v = abs(int(wf[2]))
-            v = np.float(convertf(v))
-            r[k] = v
-            norm += v * v
+            if len(wf) == 0:
+                pass
+            if len(wf) <= 2:
+                k = wf[0].replace(':', '')
+                if k == 0:
+                    continue
+                #v = np.float(100 - int(wf[1]))
+                v = abs(int(wf[1]))
+                v = np.float(convertf(v))
+                r[k] = v
+                norm += v * v
+            else:
+                #k = long(wf[0], base=16)
+                #k = wf[0]
+                k = wf[0].replace(':', '')
+                if k == 0:
+                    continue
+                #v = np.float(100 - int(wf[1]))
+                v = abs(int(wf[2]))
+                v = np.float(convertf(v))
+                r[k] = v
+                norm += v * v
         except:
             t,v = sys.exc_info()[:2]
             sys.stderr.write(wf_list + str(t) + str(v) + '\n')
