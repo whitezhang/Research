@@ -119,6 +119,11 @@ def build_and_fit(X, Y, W=None):
         model = linear_model.LogisticRegression(C=1.0, multi_class='ovr', penalty='l2')
         model.fit(X, Y)
         return model
+    elif model_name == 3:
+        from sklearn.svm import SVC
+        model = SVC()
+        model.fit(X, Y)
+        return model
 
 def train(n_W, t_W, n_X, t_X, Y):
     from sklearn import linear_model
@@ -167,6 +172,8 @@ def mode_eva_data(args):
     dv_wflist = dv.fit_transform(wflist)
     array_dv_wflist = dv_wflist.toarray()
     idx = 1
+    train_acc_r_sum = 0
+    test_acc_r_sum = 0
     for train, test in kf.split(wflist):
         train_X = [array_dv_wflist[i] for i in train]
         train_X = csr_matrix(train_X)
@@ -198,8 +205,13 @@ def mode_eva_data(args):
             test_sum += 1
             if test_Y[i] == test_YY[i]:
                 test_acc += 1
-        print 'Round %d: train:%lf(%d)\ttest:%lf(%d)' % (idx, 1. * train_acc / train_sum, train_sum, 1. * test_acc / test_sum, test_sum)
+        train_acc_ratio = 1. * train_acc / train_sum
+        test_acc_ratio = 1. * test_acc / test_sum
+        train_acc_r_sum += train_acc_ratio
+        test_acc_r_sum += test_acc_ratio
+        print 'Round %d: train:%lf(%d)\ttest:%lf(%d)' % (idx, train_acc_ratio, train_sum, test_acc_ratio, test_sum)
         idx += 1
+    print 'Average train: %lf\t average test: %lf' % (train_acc_r_sum/idx, test_acc_r_sum/idx)
 
 def mode_gen_data(args):
     range_fea = None
