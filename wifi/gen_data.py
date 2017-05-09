@@ -5,6 +5,7 @@ from scipy.sparse import csr_matrix
 import argparse
 import fw
 import math
+import operator
 
 debug = False
 model_name = ''
@@ -143,6 +144,23 @@ def mode_eva_data(args):
     def output_result(acc, ssum):
         pass
 
+    def output_wifi_on_csr(tag, pred_pid, tgt_pid, csr_matrix, dv):
+        feature_names = dv.feature_names_
+        wfs_map = {}
+        for x in csr_matrix:
+            L = len(x.indices)
+            for i in range(L):
+                idx = x.indices[i]
+                value = 100 - int(x.data[i])
+                fea = feature_names[idx]
+                wfs_map[fea] = value
+        #wfs = [k + ';' + str(wfs_map[k]) for k in sorted(wfs_map.keys())]
+        wfs = []
+        for wf in sorted(wfs_map.items(), key=lambda d: d[1]):
+            wfs.append(wf[0] + ';' + str(wf[1]))
+        print tag + '\t' + pred_pid + '\t' + tgt_pid + '\t' + '|'.join(wfs)
+
+
     def output_feature(model, dv):
         feature_names = dv.feature_names_
         coefs = model.coef_
@@ -166,6 +184,7 @@ def mode_eva_data(args):
         wf = line[0]
         label = line[1]
         wf = fw.str_to_wf(wf, normed=False)
+        #wf = fw.str_to_wf(wf, normed=True)
         wflist.append(wf)
         labels.append(label)
 
@@ -201,16 +220,21 @@ def mode_eva_data(args):
             train_sum += 1
             if train_Y[i] == train_YY[i]:
                 train_acc += 1
+            if debug:
+                output_wifi_on_csr('train', train_YY[i], train_Y[i], train_X[i], dv)
         for i in range(test_Y.shape[0]):
             test_sum += 1
             if test_Y[i] == test_YY[i]:
                 test_acc += 1
+            if debug:
+                output_wifi_on_csr('train', train_YY[i], train_Y[i], train_X[i], dv)
         train_acc_ratio = 1. * train_acc / train_sum
         test_acc_ratio = 1. * test_acc / test_sum
         train_acc_r_sum += train_acc_ratio
         test_acc_r_sum += test_acc_ratio
         print 'Round %d: train:%lf(%d)\ttest:%lf(%d)' % (idx, train_acc_ratio, train_sum, test_acc_ratio, test_sum)
         idx += 1
+        #break
     print 'Average train: %lf\t average test: %lf' % (train_acc_r_sum/idx, test_acc_r_sum/idx)
 
 def mode_gen_data(args):

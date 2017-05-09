@@ -24,25 +24,25 @@ def str_to_wf(wf_list, convertf=convertf_100, normed=True):
     wfs = [p.split(';') for p in wf_list.split('|')]
     for wf in wfs:
         try:
-            if len(wf) == 0:
+            if len(wf) <= 1:
                 pass
-            if len(wf) <= 2:
+            if len(wf) == 2:
                 k = wf[0].replace(':', '')
                 if k == 0:
                     continue
-                #v = np.float(100 - int(wf[1]))
-                v = abs(int(wf[1]))
+                v = np.float(100 - int(wf[1]))
+                #v = abs(int(wf[1]))
                 v = np.float(convertf(v))
                 r[k] = v
                 norm += v * v
-            else:
+            elif len(wf) == 3:
                 #k = long(wf[0], base=16)
                 #k = wf[0]
                 k = wf[0].replace(':', '')
                 if k == 0:
                     continue
-                #v = np.float(100 - int(wf[1]))
-                v = abs(int(wf[2]))
+                v = np.float(100 - int(wf[2]))
+                #v = abs(int(wf[2]))
                 v = np.float(convertf(v))
                 r[k] = v
                 norm += v * v
