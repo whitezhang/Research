@@ -394,6 +394,45 @@ def mode_stat_data(args):
     for k, v in wflist.items():
         print k, cal_means_vars(v)
 
+def parse_w2v():
+    def calcos(vec1, vec2):
+        sim = 0
+        norm1 = 0
+        norm2 = 0
+        for v1 in vec1:
+            for v2 in vec2:
+                sim += v1 * v2
+                norm1 += v1**2
+                norm2 += v2**2
+        if norm1 == 0 or norm2 == 0:
+            return 999
+        return 1.*sim/math.sqrt(norm1)/math.sqrt(norm2)
+
+    ap_vec = {}
+    for line in fw.get_data(sys.stdin, sep=' '):
+        if len(line) == 2:
+            ap_num, vec_size = map(int, line)
+            continue
+        ap = line[0]
+        feas = map(float, line[1:])
+        ap_vec[ap] = feas
+    dis_map = np.zeros(ap_num**2).reshape((ap_num, ap_num))
+    i = 0
+    j = 0
+    ap_list = []
+    for k1, v1 in ap_vec.items():
+        if i >= ap_num:
+            break
+        for k2, v2 in ap_vec.items():
+            dis = calcos(v1, v2)
+            if j >= ap_num:
+                break
+            dis_map[i, j] = dis
+            j += 1
+        ap_list.append(k1)
+        i += 1
+    print len(ap_list)
+    print dis_map[0]
 
 def main():
     argsparser =  argparse.ArgumentParser()
@@ -401,7 +440,8 @@ def main():
     argsparser.add_argument('-m', '--mode', type=int, help='Mode\
             \t1.generate the data\
             \t2.Evaulate real data by model\
-            \t3.Evaulate the real data by statical analysis')
+            \t3.Evaulate the real data by statical analysis\
+            \t4.Parse word2vec to distance map')
 
     argsparser.add_argument('-i', '--input', type=str, help='input file', default=None)
 
@@ -430,6 +470,8 @@ def main():
         mode_eva_data(args)
     elif mode == 3:
         mode_stat_data(args)
+    elif mode == 4:
+        parse_w2v()
     else:
         print 'Pick the mode[-m]\t1.gen data\t2.Eva real data'
 

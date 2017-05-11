@@ -22,7 +22,7 @@ def calcos(wf1, wf2):
 
 def get_data(lines, sep='\t'):
     for line in lines:
-        line = line.strip('\n').split(sep)
+        line = line.strip().split(sep)
         yield line
 
 def convertf_100(i):
