@@ -173,43 +173,48 @@ def mode_eva_data(args):
                 ptr.append(feature_names[idx] + ':' + str(coef[idx]))
             print '|'.join(ptr)
 
-    from sklearn.feature_extraction import DictVectorizer
-    from sklearn.model_selection import KFold
-    dv = DictVectorizer()
-    kf = KFold(n_splits=10, shuffle=True)
-    wflist = []
-    labels = []
+    def train_test_two_file(input_file, wf_topk=100):
+        wflist = []
+        labels = []
+        test_wflist = []
+        test_labels = []
 
-    for line in fw.get_data(sys.stdin, '\t'):
-        wf = line[0]
-        label = line[1]
-        wf = fw.str_to_wf(wf, normed=False)
-        #wf = fw.str_to_wf(wf, normed=True)
-        wflist.append(wf)
-        labels.append(label)
+        with open(input_file) as fin:
+            for line in fw.get_data(fin):
+                if len(line) != 4:
+                    continue
+                wf = line[3]
+                label = line[2]
+                tag = line[0]
+                wf = fw.str_to_wf(wf, normed=False, topk=wf_topk)
+                if tag == 'train':
+                    wflist.append(wf)
+                    labels.append(label)
+                elif tag == 'test':
+                    test_wflist.append(wf)
+                    test_labels.append(label)
+        train_L = len(wflist)
+        wflist.extend(test_wflist)
+        labels.extend(test_labels)
 
-    dv_wflist = dv.fit_transform(wflist)
-    array_dv_wflist = dv_wflist.toarray()
-    idx = 1
-    train_acc_r_sum = 0
-    test_acc_r_sum = 0
-    for train, test in kf.split(wflist):
-        train_X = [array_dv_wflist[i] for i in train]
+        from sklearn.feature_extraction import DictVectorizer
+        dv = DictVectorizer()
+        dv_wflist = dv.fit_transform(wflist)
+        array_dv_wflist = dv_wflist.toarray()
+
+        train_X = array_dv_wflist[:train_L]
         train_X = csr_matrix(train_X)
-        train_Y = [labels[i] for i in train]
+        train_Y = labels[:train_L]
         train_Y = np.asarray(train_Y)
 
-        test_X = [array_dv_wflist[i] for i in test]
+        test_X = array_dv_wflist[train_L:]
         test_X = csr_matrix(test_X)
-        test_Y = [labels[i] for i in test]
+        test_Y = labels[train_L:]
         test_Y = np.asarray(test_Y)
 
-        #model = build_and_fit(train_X, train_Y)
         model = build_and_fit(train_X, train_Y)
-        #debug = True
         if debug:
             output_feature(model, dv)
-        #print model.predict(train_X)
         train_YY = model.predict(train_X)
         test_YY = model.predict(test_X)
         train_acc = 0
@@ -220,22 +225,88 @@ def mode_eva_data(args):
             train_sum += 1
             if train_Y[i] == train_YY[i]:
                 train_acc += 1
-            if debug:
-                output_wifi_on_csr('train', train_YY[i], train_Y[i], train_X[i], dv)
+            #if debug:
+            #output_wifi_on_csr('train', train_YY[i], train_Y[i], train_X[i], dv)
         for i in range(test_Y.shape[0]):
             test_sum += 1
             if test_Y[i] == test_YY[i]:
                 test_acc += 1
-            if debug:
-                output_wifi_on_csr('train', train_YY[i], train_Y[i], train_X[i], dv)
+            #if debug:
+            #output_wifi_on_csr('test', test_YY[i], test_Y[i], test_X[i], dv)
         train_acc_ratio = 1. * train_acc / train_sum
         test_acc_ratio = 1. * test_acc / test_sum
-        train_acc_r_sum += train_acc_ratio
-        test_acc_r_sum += test_acc_ratio
-        print 'Round %d: train:%lf(%d)\ttest:%lf(%d)' % (idx, train_acc_ratio, train_sum, test_acc_ratio, test_sum)
-        idx += 1
-        #break
-    print 'Average train: %lf\t average test: %lf' % (train_acc_r_sum/idx, test_acc_r_sum/idx)
+        print 'train:%lf(%d/%d)\ttest:%lf(%d/%d)' % (train_acc_ratio, train_acc, train_sum, test_acc_ratio, test_acc, test_sum)
+
+
+    def train_kflod(k=10, wf_topk=100):
+        from sklearn.feature_extraction import DictVectorizer
+        from sklearn.model_selection import KFold
+        dv = DictVectorizer()
+        kf = KFold(n_splits=k, shuffle=True)
+        wflist = []
+        labels = []
+
+        for line in fw.get_data(sys.stdin):
+            wf = line[0]
+            label = line[1]
+            wf = fw.str_to_wf(wf, normed=False, topk=wf_topk)
+            wflist.append(wf)
+            labels.append(label)
+
+        dv_wflist = dv.fit_transform(wflist)
+        array_dv_wflist = dv_wflist.toarray()
+        idx = 0
+        train_acc_r_sum = 0
+        test_acc_r_sum = 0
+        for train, test in kf.split(wflist):
+            train_X = [array_dv_wflist[i] for i in train]
+            train_X = csr_matrix(train_X)
+            train_Y = [labels[i] for i in train]
+            train_Y = np.asarray(train_Y)
+
+            test_X = [array_dv_wflist[i] for i in test]
+            test_X = csr_matrix(test_X)
+            test_Y = [labels[i] for i in test]
+            test_Y = np.asarray(test_Y)
+
+            #model = build_and_fit(train_X, train_Y)
+            model = build_and_fit(train_X, train_Y)
+            #debug = True
+            if debug:
+                output_feature(model, dv)
+            #print model.predict(train_X)
+            train_YY = model.predict(train_X)
+            test_YY = model.predict(test_X)
+            train_acc = 0
+            test_acc = 0
+            train_sum = 0
+            test_sum = 0
+            for i in range(train_Y.shape[0]):
+                train_sum += 1
+                if train_Y[i] == train_YY[i]:
+                    train_acc += 1
+                #if debug:
+                output_wifi_on_csr('train', train_YY[i], train_Y[i], train_X[i], dv)
+            for i in range(test_Y.shape[0]):
+                test_sum += 1
+                if test_Y[i] == test_YY[i]:
+                    test_acc += 1
+                #if debug:
+                output_wifi_on_csr('test', test_YY[i], test_Y[i], test_X[i], dv)
+            train_acc_ratio = 1. * train_acc / train_sum
+            test_acc_ratio = 1. * test_acc / test_sum
+            train_acc_r_sum += train_acc_ratio
+            test_acc_r_sum += test_acc_ratio
+            print 'Round %d: train:%lf(%d/%d)\ttest:%lf(%d/%d)' % (idx, train_acc_ratio, train_acc, train_sum, test_acc_ratio, test_acc, test_sum)
+            idx += 1
+            break
+        print 'Average train: %lf\t average test: %lf' % (train_acc_r_sum/idx, test_acc_r_sum/idx)
+
+    input_file = args.input
+    if input_file != None:
+        train_test_two_file(input_file)
+    else:
+        train_kflod()
 
 def mode_gen_data(args):
     range_fea = None
@@ -332,13 +403,16 @@ def main():
             \t2.Evaulate real data by model\
             \t3.Evaulate the real data by statical analysis')
 
+    argsparser.add_argument('-i', '--input', type=str, help='input file', default=None)
+
     argsparser.add_argument('-f', '--fea', type=int, help='number of features', default=3)
     argsparser.add_argument('-s', '--sample', type=int, help='number of samples', default=2)
     argsparser.add_argument('-n', '--noise', type=int, help='number of noise', default=1)
-    argsparser.add_argument('-d', '--debug', type=bool, help='debug mode', default=False)
     argsparser.add_argument('-fr', '--fea_range', type=str, help='range of features[1-100]')
     argsparser.add_argument('-sr', '--sample_range', type=str, help='range of samples[1-100]')
     argsparser.add_argument('-nr', '--noise_range', type=str, help='range of noise[1-100]')
+
+    argsparser.add_argument('-d', '--debug', type=bool, help='debug mode', default=False)
     argsparser.add_argument('-na', '--model_name', type=int, help='Model\
             \t0.LinearRegression\
             \t1.LogisticRegression', default=0)

@@ -3,6 +3,23 @@ import scipy.sparse as sp
 import logging
 import sys
 
+
+def calcos(wf1, wf2):
+    sim = 0
+    norm = 0
+    n2 = 0
+    for key, value in wf1.items():
+        # print key
+        if key in wf2:
+            sim += wf1[key]*wf2[key]
+            norm += wf2[key]**2
+            n2 += wf1[key]**2
+    # return 1.0*sim, labelwf['label']
+    # return 1.0*sim/math.sqrt(norm)/math.sqrt(n2)/200, labelwf['label']
+    if norm == 0:
+        return -1, ""
+    return 1.0*sim/math.sqrt(norm)
+
 def get_data(lines, sep='\t'):
     for line in lines:
         line = line.strip('\n').split(sep)
@@ -17,12 +34,12 @@ def convertf_1(i):
 def wf_to_str(wf_list):
     pass
 
-def str_to_wf(wf_list, convertf=convertf_100, normed=True):
+def str_to_wf(wf_list, convertf=convertf_100, normed=True, topk=30):
     r = dict()
     norm = 0.0
 
     wfs = [p.split(';') for p in wf_list.split('|')]
-    for wf in wfs:
+    for wf in wfs[:topk]:
         try:
             if len(wf) <= 1:
                 pass
