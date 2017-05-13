@@ -190,7 +190,7 @@ def mode_eva_data(args):
 
     dv_wflist = dv.fit_transform(wflist)
     array_dv_wflist = dv_wflist.toarray()
-    idx = 1
+    idx = 0
     train_acc_r_sum = 0
     test_acc_r_sum = 0
     for train, test in kf.split(wflist):
@@ -234,7 +234,7 @@ def mode_eva_data(args):
         test_acc_r_sum += test_acc_ratio
         print 'Round %d: train:%lf(%d)\ttest:%lf(%d)' % (idx, train_acc_ratio, train_sum, test_acc_ratio, test_sum)
         idx += 1
-        #break
+        break
     print 'Average train: %lf\t average test: %lf' % (train_acc_r_sum/idx, test_acc_r_sum/idx)
 
 def mode_gen_data(args):
