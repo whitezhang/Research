@@ -173,6 +173,30 @@ def mode_eva_data(args):
                 ptr.append(feature_names[idx] + ':' + str(coef[idx]))
             print '|'.join(ptr)
 
+<<<<<<< HEAD
+    from sklearn.feature_extraction import DictVectorizer
+    from sklearn.model_selection import KFold
+    dv = DictVectorizer()
+    kf = KFold(n_splits=10, shuffle=True)
+    wflist = []
+    labels = []
+
+    for line in fw.get_data(sys.stdin, '\t'):
+        wf = line[0]
+        label = line[1]
+        wf = fw.str_to_wf(wf, normed=False)
+        #wf = fw.str_to_wf(wf, normed=True)
+        wflist.append(wf)
+        labels.append(label)
+
+    dv_wflist = dv.fit_transform(wflist)
+    array_dv_wflist = dv_wflist.toarray()
+    idx = 0
+    train_acc_r_sum = 0
+    test_acc_r_sum = 0
+    for train, test in kf.split(wflist):
+        train_X = [array_dv_wflist[i] for i in train]
+=======
     def train_test_two_file(input_file, wf_topk=100):
         wflist = []
         labels = []
@@ -203,6 +227,7 @@ def mode_eva_data(args):
         array_dv_wflist = dv_wflist.toarray()
 
         train_X = array_dv_wflist[:train_L]
+>>>>>>> 287843a680a3b56c28ebbd8a0332244aa6b48eae
         train_X = csr_matrix(train_X)
         train_Y = labels[:train_L]
         train_Y = np.asarray(train_Y)
