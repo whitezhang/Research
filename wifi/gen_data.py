@@ -173,30 +173,6 @@ def mode_eva_data(args):
                 ptr.append(feature_names[idx] + ':' + str(coef[idx]))
             print '|'.join(ptr)
 
-<<<<<<< HEAD
-    from sklearn.feature_extraction import DictVectorizer
-    from sklearn.model_selection import KFold
-    dv = DictVectorizer()
-    kf = KFold(n_splits=10, shuffle=True)
-    wflist = []
-    labels = []
-
-    for line in fw.get_data(sys.stdin, '\t'):
-        wf = line[0]
-        label = line[1]
-        wf = fw.str_to_wf(wf, normed=False)
-        #wf = fw.str_to_wf(wf, normed=True)
-        wflist.append(wf)
-        labels.append(label)
-
-    dv_wflist = dv.fit_transform(wflist)
-    array_dv_wflist = dv_wflist.toarray()
-    idx = 0
-    train_acc_r_sum = 0
-    test_acc_r_sum = 0
-    for train, test in kf.split(wflist):
-        train_X = [array_dv_wflist[i] for i in train]
-=======
     def train_test_two_file(input_file, wf_topk=100):
         wflist = []
         labels = []
@@ -227,7 +203,6 @@ def mode_eva_data(args):
         array_dv_wflist = dv_wflist.toarray()
 
         train_X = array_dv_wflist[:train_L]
->>>>>>> 287843a680a3b56c28ebbd8a0332244aa6b48eae
         train_X = csr_matrix(train_X)
         train_Y = labels[:train_L]
         train_Y = np.asarray(train_Y)
@@ -311,13 +286,13 @@ def mode_eva_data(args):
                 if train_Y[i] == train_YY[i]:
                     train_acc += 1
                 #if debug:
-                output_wifi_on_csr('train', train_YY[i], train_Y[i], train_X[i], dv)
+                #output_wifi_on_csr('train', train_YY[i], train_Y[i], train_X[i], dv)
             for i in range(test_Y.shape[0]):
                 test_sum += 1
                 if test_Y[i] == test_YY[i]:
                     test_acc += 1
                 #if debug:
-                output_wifi_on_csr('test', test_YY[i], test_Y[i], test_X[i], dv)
+                #output_wifi_on_csr('test', test_YY[i], test_Y[i], test_X[i], dv)
             train_acc_ratio = 1. * train_acc / train_sum
             test_acc_ratio = 1. * test_acc / test_sum
             train_acc_r_sum += train_acc_ratio
@@ -442,6 +417,7 @@ def parse_w2v():
         feas = map(float, line[1:])
         ap_vec[ap] = feas
     dis_map = np.zeros(ap_num**2).reshape((ap_num, ap_num))
+    dd = {}
     i = 0
     j = 0
     ap_list = []
@@ -449,15 +425,20 @@ def parse_w2v():
         if i >= ap_num:
             break
         for k2, v2 in ap_vec.items():
-            dis = calcos(v1, v2)
+            dis = abs(calcos(v1, v2))
             if j >= ap_num:
                 break
             dis_map[i, j] = dis
             j += 1
+            if k1 not in dd:
+                dd[k1] = []
+            dd[k1].append([k1, k2, dis])
         ap_list.append(k1)
         i += 1
-    print len(ap_list)
-    print dis_map[0]
+    for k, v in dd.items():
+        for vv in v:
+            print '\t'.join(map(str, vv))
+        break
 
 def main():
     argsparser =  argparse.ArgumentParser()
