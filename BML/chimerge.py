@@ -1,32 +1,19 @@
-__author__ = 'lisette.espin'
-
-######################################################################################################################
-# SYSTEM DEPENDENCES
-######################################################################################################################
 import numpy as np
 import math
 
-######################################################################################################################
-# LOCAL DEPENDENCES
-######################################################################################################################
 import utils
 
-######################################################################################################################
 # CONSTANTS
 # Threshold reference: (http://sites.stat.psu.edu/~mga/401/tables/Chi-square-table.pdf)
-######################################################################################################################
 MIN_NUMBER_INTERVALS = 2
 
-######################################################################################################################
-# ChiMerge CLASS
-######################################################################################################################
 class ChiMerge():
     '''
     1992 by R. Kerber
     Reference: https://www.aaai.org/Papers/AAAI/1992/AAAI92-019.pdf
     '''
 
-    def __init__(self, min_expected_value, max_number_intervals, threshold):
+    def __init__(self, min_expected_value, max_number_intervals, threshold, debug_info=False):
         '''
         chi-square distribution table: http://sites.stat.psu.edu/~mga/401/tables/Chi-square-table.pdf
         :param min_expected_value:
@@ -46,7 +33,9 @@ class ChiMerge():
         self.max_number_intervals = max_number_intervals
         self.threshold = threshold
 
-    def loadData(self, data, issorted=False):
+        self.debug_info = debug_info
+
+    def loadData(self, data, issorted=False, dttyp='i8,i8'):
         '''
         :param data: numpy matrix
         :param issorted: boolean, if data is already sorted, no need to sort again (based on attribute_column)
@@ -58,10 +47,12 @@ class ChiMerge():
 
         self.data = data # numpy.matrix (x,2). column index 0 refers to attributes column and index 1 classes
         if not issorted:
-            self.sorted_data = np.array(np.sort(data.view('i8,i8'), order=['f0'], axis=0).view(np.float))   #always sorting column 0 (attribute column)
+            #self.sorted_data = np.array(np.sort(data.view('i8,i8'), order=['f0'], axis=0).view(np.float))   #always sorting column 0 (attribute column)
+            self.sorted_data = np.array(np.sort(data.view(dttyp), order=['f0'], axis=0).view(np.float))   #always sorting column 0 (attribute column)
         else:
             self.sorted_data = np.array(data)
-        utils.printf('Sorted data: matrix {}x{}'.format(self.sorted_data.shape[0],self.sorted_data.shape[1]))
+        if self.debug_info:
+            utils.printf('Sorted data: matrix {}x{}'.format(self.sorted_data.shape[0],self.sorted_data.shape[1]))
 
     def loadFrequencyMatrix(self, frequency_matrix, unique_attribute_values):
         '''
@@ -97,7 +88,8 @@ class ChiMerge():
         for row in np.unique(indices):
             for col, clase in enumerate(unique_class_values):
                 self.frequency_matrix[row,col] += np.where(self.sorted_data[np.where(indices == row)][:,1] == clase)[0].shape[0]
-        self.printInitialSummary()
+        if self.debug_info:
+            self.printInitialSummary()
 
     def chisqrtest(self, array):
         '''
@@ -109,7 +101,6 @@ class ChiMerge():
         N = float(array.sum())  # total number of observations
         r = self._getTotalsPerRow(array)
         c = self._getTotalsPerColumn(array)
-        print len(r), len(c)
 
         chisqr = 0
         for row in range(shape[0]):
@@ -150,27 +141,31 @@ class ChiMerge():
             # SUMMARY
             ###
             counter += 1
-            utils.printf('')
-            utils.printf('ROUND {}: {} intervals. Chi min:{}, Chi max:{}'.format(counter, self.frequency_matrix.shape[0], smallest, biggest))
-            utils.printf('CHI2 VALUES: {}'.format(chitest.keys()))
+            if self.debug_info:
+                utils.printf('')
+                utils.printf('ROUND {}: {} intervals. Chi min:{}, Chi max:{}'.format(counter, self.frequency_matrix.shape[0], smallest, biggest))
+                utils.printf('CHI2 VALUES: {}'.format(chitest.keys()))
 
             ###
             # MERGE
             ###
             if self._more_merges(smallest):
-                utils.printf('MERGING INTERVALS: chi {} -> {}'.format(smallest, chitest[smallest]))
+                if self.debug_info:
+                    utils.printf('MERGING INTERVALS: chi {} -> {}'.format(smallest, chitest[smallest]))
                 for (lower,upper) in list(reversed(chitest[smallest])):                                     # reversed, to be able to remove rows on the fly
                     for col in range(shape[1]):                                                             # checking columns (to append values from row i+1 ---to be removed--- to row i)
                         self.frequency_matrix[lower,col] += self.frequency_matrix[upper,col]                # appending frequencies to the remaining interval
                     self.frequency_matrix = np.delete(self.frequency_matrix, upper, 0)                      # removing interval (because we merged it in the previous step)
                     self.frequency_matrix_intervals = np.delete(self.frequency_matrix_intervals, upper, 0)  # also removing the corresponding interval (real values)
-                utils.printf('NEW INTERVALS: ({}):{}'.format(len(self.frequency_matrix_intervals),self.frequency_matrix_intervals))
+                if self.debug_info:
+                    utils.printf('NEW INTERVALS: ({}):{}'.format(len(self.frequency_matrix_intervals),self.frequency_matrix_intervals))
 
             else:
                 break
 
         self.chitestvalues = chitest
-        utils.printf('END (chi {} > {})\n'.format(smallest, self.threshold))
+        if self.debug_info:
+            utils.printf('END (chi {} > {})\n'.format(smallest, self.threshold))
 
     ##############################################################
     # Printing (output)
@@ -191,7 +186,11 @@ class ChiMerge():
         utils.printf('FINAL SUMMARY')
         utils.printf('{}{}'.format('Intervals: ',self.frequency_matrix_intervals))
         utils.printf('{}{}'.format('Chi2: ',', '.join(['[{}-{}):{:5.1f}'.format(v[0][0],v[0][1],k) for k,v in utils.sortDictByValue(self.chitestvalues,False)])))
-        utils.printf('{} ({}x{})\n{}'.format('Interval-Class Frequencies',self.frequency_matrix.shape[0],self.frequency_matrix.shape[1],self.frequency_matrix))
+        utils.printf('{} ({}x{})\n{}'.format('Interval-Class Frequencies',self.frequency_matrix.shape[0],self.frequency_matrix.shape[1],self.frequency_matrix.T))
+
+    def printDiscretizationInfo(self, feature_name):
+        ptr = [feature_name, ','.join(map(str, self.frequency_matrix_intervals))]
+        print '\t'.join(ptr)
 
     ##############################################################
     # Handlers
