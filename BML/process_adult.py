@@ -25,7 +25,9 @@ def example_chi2_irisdb(alpha, delta, min_expected_value):
 
 def process_adult(attribute_column, min_expected_value, max_number_intervals, threshold, debug_info):
     chi = ChiMerge(min_expected_value, max_number_intervals, threshold, debug_info)
-    data, Y, feature_names = _readAdultDataSet(attribute_column)
+    #data, Y, feature_names = _readAdultDataSet(attribute_column)
+    data = _readAdultDataSetBySlots(attribute_column)
+    return
 
     for i in range(data.shape[1]):
         chiData = np.concatenate((data[:,i], Y), axis=1)
@@ -33,6 +35,43 @@ def process_adult(attribute_column, min_expected_value, max_number_intervals, th
         chi.generateFrequencyMatrix()
         chi.chimerge()
         chi.printDiscretizationInfo(feature_names[i])
+
+def _readAdultDataSetBySlots(attribute_column=-1, maxlen=10000000):
+    attributes = [('age', 'i8'), ('workclass', 'S40'), ('fnlwgt', 'i8'), ('education', 'S40'), ('education-num', 'i8'), ('marital-status', 'S40'), ('occupation', 'S40'), ('relationship', 'S40'), ('race', 'S40'), ('sex', 'S40'), ('capital-gain', 'i8'), ('capital-loss', 'i8'), ('hours-per-week', 'i8'), ('native-country', 'S40'), ('pay', 'S40')]
+    datatype = np.dtype(attributes)
+
+    if attribute_column < -1 or attribute_column > 15:
+        return
+    if attribute_column== -1:
+        attribute_columns = range(15)
+    else:
+        attribute_columns = [attribute_column]
+
+    data = np.zeros((maxlen,), dtype=object)
+    #pathfn = 'adult/adult.data'
+    pathfn = 'adult/adult.small'
+    data_idx = 0
+
+    with open(pathfn, 'r') as f:
+        for line in f:
+            tmpdict = {}
+            tmp = line.replace(' ', '').strip().split(',')
+            data[data_idx] = np.array(tuple(tmp), dtype=datatype)
+            data_idx += 1
+    data = data[:data_idx]
+
+    feature_names = []
+    for g in attributes:
+        typ = g[0]
+        if typ != 'pay':
+            feature_names.append(typ)
+
+    from featureslots import FeatureSlots
+    fs = FeatureSlots()
+    fs.fit_transform(col_names=feature_names, data=data, dttyp=datatype)
+    #X = fs.fit_transform(attributes, np.matrix(data))
+    #return np.matrix(X)
+
 
 def _readAdultDataSet(attribute_column=-1):
     """
@@ -71,7 +110,6 @@ def _readAdultDataSet(attribute_column=-1):
     #pathfn = 'adult/adult.data'
     pathfn = 'adult/adult.small'
     data = []
-    vocab = {}
     dv = DictVectorizer(sparse=False)
     Y = []
 
