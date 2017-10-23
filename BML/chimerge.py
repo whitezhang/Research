@@ -48,7 +48,8 @@ class ChiMerge():
         self.data = data # numpy.matrix (x,2). column index 0 refers to attributes column and index 1 classes
         if not issorted:
             #self.sorted_data = np.array(np.sort(data.view('i8,i8'), order=['f0'], axis=0).view(np.float))   #always sorting column 0 (attribute column)
-            self.sorted_data = np.array(np.sort(data.view(dttyp), order=['f0'], axis=0).view(np.float))   #always sorting column 0 (attribute column)
+            #self.sorted_data = np.array(np.sort(data.view(dttyp), order=['f0'], axis=0).view(np.float))   #always sorting column 0 (attribute column)
+            self.sorted_data = np.array(np.sort(data.view(dttyp), order=['f0'], axis=0).view(np.int64))   #always sorting column 0 (attribute column)
         else:
             self.sorted_data = np.array(data)
         if self.debug_info:
@@ -167,10 +168,7 @@ class ChiMerge():
         if self.debug_info:
             utils.printf('END (chi {} > {})\n'.format(smallest, self.threshold))
 
-    ##############################################################
     # Printing (output)
-    ##############################################################
-
     def printInitialSummary(self):
         utils.printf('')
         utils.printf('ROUND 0: Initial values:')
@@ -192,10 +190,7 @@ class ChiMerge():
         ptr = [feature_name, ','.join(map(str, self.frequency_matrix_intervals))]
         print '\t'.join(ptr)
 
-    ##############################################################
     # Handlers
-    ##############################################################
-
     def _continue(self, smallest):
         c1 = self._too_many_intervals()
         c2 = self._more_merges(smallest)

@@ -12,7 +12,7 @@ def example_chimerge_irisdb(attribute_column, min_expected_value, max_number_int
     chi.loadData(data, False)
     chi.generateFrequencyMatrix()
     chi.chimerge()
-    chi.printDiscretizationInfo()
+    #chi.printDiscretizationInfo()
     chi.printFinalSummary()
 
 def example_chi2_irisdb(alpha, delta, min_expected_value):
@@ -24,56 +24,32 @@ def example_chi2_irisdb(alpha, delta, min_expected_value):
     chi.printFinalSummary()
 
 def process_adult(attribute_column, min_expected_value, max_number_intervals, threshold, debug_info):
-    chi = ChiMerge(min_expected_value, max_number_intervals, threshold, debug_info)
-    #data, Y, feature_names = _readAdultDataSet(attribute_column)
-    data = _readAdultDataSetBySlots(attribute_column)
-    return
+    attributes = [('age', 'i8'), ('workclass', 'S40'), ('fnlwgt', 'i8'), ('education', 'S40'), ('education-num', 'i8'), ('marital-status', 'S40'), ('occupation', 'S40'), ('relationship', 'S40'), ('race', 'S40'), ('sex', 'S40'), ('capital-gain', 'i8'), ('capital-loss', 'i8'), ('hours-per-week', 'i8'), ('native-country', 'S40'), ('pay', 'S40')]
+    #attributes = [('age', 'f4'), ('workclass', 'S40'), ('fnlwgt', 'f4'), ('education', 'S40'), ('education-num', 'f4'), ('marital-status', 'S40'), ('occupation', 'S40'), ('relationship', 'S40'), ('race', 'S40'), ('sex', 'S40'), ('capital-gain', 'f4'), ('capital-loss', 'f4'), ('hours-per-week', 'f4'), ('native-country', 'S40'), ('pay', 'S40')]
+    datatype = np.dtype(attributes)
 
+    chi = ChiMerge(min_expected_value, max_number_intervals, threshold, debug_info)
+    data, Y, feature_names = _readAdultDataSet(attribute_column, attributes)
+    discretizationDict = {}
+    discretizationDtype = []
     for i in range(data.shape[1]):
         chiData = np.concatenate((data[:,i], Y), axis=1)
         chi.loadData(chiData, False)
         chi.generateFrequencyMatrix()
         chi.chimerge()
-        chi.printDiscretizationInfo(feature_names[i])
-
-def _readAdultDataSetBySlots(attribute_column=-1, maxlen=10000000):
-    attributes = [('age', 'i8'), ('workclass', 'S40'), ('fnlwgt', 'i8'), ('education', 'S40'), ('education-num', 'i8'), ('marital-status', 'S40'), ('occupation', 'S40'), ('relationship', 'S40'), ('race', 'S40'), ('sex', 'S40'), ('capital-gain', 'i8'), ('capital-loss', 'i8'), ('hours-per-week', 'i8'), ('native-country', 'S40'), ('pay', 'S40')]
-    datatype = np.dtype(attributes)
-
-    if attribute_column < -1 or attribute_column > 15:
-        return
-    if attribute_column== -1:
-        attribute_columns = range(15)
-    else:
-        attribute_columns = [attribute_column]
-
-    data = np.zeros((maxlen,), dtype=object)
-    #pathfn = 'adult/adult.data'
-    pathfn = 'adult/adult.small'
-    data_idx = 0
-
-    with open(pathfn, 'r') as f:
-        for line in f:
-            tmpdict = {}
-            tmp = line.replace(' ', '').strip().split(',')
-            data[data_idx] = np.array(tuple(tmp), dtype=datatype)
-            data_idx += 1
-    data = data[:data_idx]
-
-    feature_names = []
-    for g in attributes:
-        typ = g[0]
-        if typ != 'pay':
-            feature_names.append(typ)
+        #chi.printDiscretizationInfo(feature_names[i])
+        discretizationDict[feature_names[i]] = chi.frequency_matrix_intervals
+        discretizationDtype.append((feature_names[i], 'i8'))
 
     from featureslots import FeatureSlots
     fs = FeatureSlots()
-    fs.fit_transform(col_names=feature_names, data=data, dttyp=datatype)
-    #X = fs.fit_transform(attributes, np.matrix(data))
-    #return np.matrix(X)
+    for i in range(data.shape[0]):
+        input_stream = np.zeros((1,),dtype=object)
+        input_stream[0] = np.asarray(data[i,:])
+        X_slots = fs.fit_transform(data=input_stream, dttyp=np.dtype(discretizationDtype), discret_intervals=discretizationDict)
+        print X_slots
 
-
-def _readAdultDataSet(attribute_column=-1):
+def _readAdultDataSet(attribute_column=-1, attributes=None):
     """
     Reference: http://archive.ics.uci.edu/ml/machine-learning-databases/adult/
     e.g. 39, State-gov, 77516, Bachelors, 13, Never-married, Adm-clerical, Not-in-family, White, Male, 2174, 0, 40, United-States, <=50K
@@ -98,14 +74,15 @@ def _readAdultDataSet(attribute_column=-1):
     """
 
     from sklearn.feature_extraction import DictVectorizer
-    attributes = [('age', 'i8'), ('workclass', 'S40'), ('fnlwgt', 'i8'), ('education', 'S40'), ('education-num', 'i8'), ('marital-status', 'S40'), ('occupation', 'S40'), ('relationship', 'S40'), ('race', 'S40'), ('sex', 'S40'), ('capital-gain', 'i8'), ('capital-loss', 'i8'), ('hours-per-week', 'i8'), ('native-country', 'S40'), ('pay', 'S40')]
-    datatype = np.dtype(attributes)
     if attribute_column < -1 or attribute_column > 15:
         return
     if attribute_column== -1:
         attribute_columns = range(15)
     else:
         attribute_columns = [attribute_column]
+    if attributes == None:
+        return
+    datatype = np.dtype(attributes)
 
     #pathfn = 'adult/adult.data'
     pathfn = 'adult/adult.small'
@@ -121,18 +98,19 @@ def _readAdultDataSet(attribute_column=-1):
             for g in attributes:
                 typ = g[0]
                 value = tmp[typ]
-                if value.dtype == np.dtype('S40'):
-                    tag = str(typ) + '_' + str(value)
-                    tmpdict[tag] = 1
-                else:
-                    tmpdict[typ] = value
+
                 if g[0] == 'pay' and value == '>50K':
                     Y.append(1)
                 elif g[0] == 'pay'  and value == '<=50K':
                     Y.append(0)
+                elif value.dtype == np.dtype('S40'):
+                    tag = str(typ) + '_' + str(value)
+                    tmpdict[tag] = 1
+                else:
+                    tmpdict[typ] = value
             data.append(tmpdict)
     X = dv.fit_transform(data)
-    return np.matrix(X), np.matrix(Y).T, dv.get_feature_names()
+    return np.matrix(X, dtype='i8'), np.matrix(Y).T, dv.get_feature_names()
 
 def _readIrisDataset(attribute_column=-1):
     '''
@@ -176,10 +154,7 @@ def _readIrisDataset(attribute_column=-1):
     utils.printf('Data: matrix {}x{}'.format(m.shape[0],m.shape[1]))
     return m
 
-######################################################################################################################
-# FUNCTIONS TOI EXAMPLE
 # https://alitarhini.files.wordpress.com/2010/11/hw2.ppt
-######################################################################################################################
 def toi_example(min_expected_value=0.5, max_number_intervals=6, threshold=2.71):
     chi = ChiMerge(min_expected_value, max_number_intervals, threshold)
     data = _readToiExample()
