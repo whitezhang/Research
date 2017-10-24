@@ -25,12 +25,11 @@ def example_chi2_irisdb(alpha, delta, min_expected_value):
 
 def process_adult(attribute_column, min_expected_value, max_number_intervals, threshold, debug_info):
     attributes = [('age', 'i8'), ('workclass', 'S40'), ('fnlwgt', 'i8'), ('education', 'S40'), ('education-num', 'i8'), ('marital-status', 'S40'), ('occupation', 'S40'), ('relationship', 'S40'), ('race', 'S40'), ('sex', 'S40'), ('capital-gain', 'i8'), ('capital-loss', 'i8'), ('hours-per-week', 'i8'), ('native-country', 'S40'), ('pay', 'S40')]
-    #attributes = [('age', 'f4'), ('workclass', 'S40'), ('fnlwgt', 'f4'), ('education', 'S40'), ('education-num', 'f4'), ('marital-status', 'S40'), ('occupation', 'S40'), ('relationship', 'S40'), ('race', 'S40'), ('sex', 'S40'), ('capital-gain', 'f4'), ('capital-loss', 'f4'), ('hours-per-week', 'f4'), ('native-country', 'S40'), ('pay', 'S40')]
     datatype = np.dtype(attributes)
 
     chi = ChiMerge(min_expected_value, max_number_intervals, threshold, debug_info)
     data, Y, feature_names = _readAdultDataSet(attribute_column, attributes)
-    discretizationDict = {}
+    discretizationIntervals = {}
     discretizationDtype = []
     for i in range(data.shape[1]):
         chiData = np.concatenate((data[:,i], Y), axis=1)
@@ -38,16 +37,23 @@ def process_adult(attribute_column, min_expected_value, max_number_intervals, th
         chi.generateFrequencyMatrix()
         chi.chimerge()
         #chi.printDiscretizationInfo(feature_names[i])
-        discretizationDict[feature_names[i]] = chi.frequency_matrix_intervals
+        discretizationIntervals[feature_names[i]] = chi.frequency_matrix_intervals
         discretizationDtype.append((feature_names[i], 'i8'))
 
     from featureslots import FeatureSlots
     fs = FeatureSlots()
+    X_discreted = []
     for i in range(data.shape[0]):
         input_stream = np.zeros((1,),dtype=object)
         input_stream[0] = np.asarray(data[i,:])
-        X_slots = fs.fit_transform(data=input_stream, dttyp=np.dtype(discretizationDtype), discret_intervals=discretizationDict)
-        print X_slots
+        X_slots = fs.fit_transform(data=input_stream, dttyp=np.dtype(discretizationDtype), discret_intervals=discretizationIntervals)
+        X_discreted.append(X_slots)
+
+    X_combined = []
+    for i in range(len(X_discreted)):
+        combined_features = fs.combine_features(X_discreted[i])
+        X_combined.append(combined_features)
+        print combined_features
 
 def _readAdultDataSet(attribute_column=-1, attributes=None):
     """
@@ -72,8 +78,6 @@ def _readAdultDataSet(attribute_column=-1, attributes=None):
     native-country: United-States, Cambodia, England, Puerto-Rico, Canada, Germany, Outlying-US(Guam-USVI-etc), India, Japan, Greece, South, China, Cuba, Iran, Honduras, Philippines, Italy, Poland, Jamaica, Vietnam, Mexico, Portugal, Ireland, France, Dominican-Republic, Laos, Ecuador, Taiwan, Haiti, Columbia, Hungary, Guatemala, Nicaragua, Scotland, Thailand, Yugoslavia, El-Salvador, Trinadad&Tobago, Peru, Hong, Holand-Netherlands.
     :return:
     """
-
-    from sklearn.feature_extraction import DictVectorizer
     if attribute_column < -1 or attribute_column > 15:
         return
     if attribute_column== -1:
@@ -87,7 +91,6 @@ def _readAdultDataSet(attribute_column=-1, attributes=None):
     #pathfn = 'adult/adult.data'
     pathfn = 'adult/adult.small'
     data = []
-    dv = DictVectorizer(sparse=False)
     Y = []
 
     with open(pathfn, 'r') as f:
@@ -104,11 +107,14 @@ def _readAdultDataSet(attribute_column=-1, attributes=None):
                 elif g[0] == 'pay'  and value == '<=50K':
                     Y.append(0)
                 elif value.dtype == np.dtype('S40'):
-                    tag = str(typ) + '_' + str(value)
+                    tag = str(typ) + '\001' + str(value)
                     tmpdict[tag] = 1
                 else:
                     tmpdict[typ] = value
             data.append(tmpdict)
+
+    from sklearn.feature_extraction import DictVectorizer
+    dv = DictVectorizer(sparse=False)
     X = dv.fit_transform(data)
     return np.matrix(X, dtype='i8'), np.matrix(Y).T, dv.get_feature_names()
 
