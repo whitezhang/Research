@@ -15,14 +15,6 @@ def example_chimerge_irisdb(attribute_column, min_expected_value, max_number_int
     #chi.printDiscretizationInfo()
     chi.printFinalSummary()
 
-def example_chi2_irisdb(alpha, delta, min_expected_value):
-    chi = Chi2(alpha, delta, min_expected_value)
-    data = _readIrisDataset()
-    chi.loadData(data)
-    chi.printInitialSummary()
-    chi.chi2()
-    chi.printFinalSummary()
-
 def sparse_to_matrix(data):
     n = len(data)
     vals = list(set([x for g in data for x in g]))
@@ -206,30 +198,8 @@ def _readIrisDataset(attribute_column=-1):
     utils.printf('Data: matrix {}x{}'.format(m.shape[0],m.shape[1]))
     return m
 
-# https://alitarhini.files.wordpress.com/2010/11/hw2.ppt
-def toi_example(min_expected_value=0.5, max_number_intervals=6, threshold=2.71):
-    chi = ChiMerge(min_expected_value, max_number_intervals, threshold)
-    data = _readToiExample()
-    chi.loadData(data, True)
-    chi.generateFrequencyMatrix()
-    chi.chimerge()
-    chi.printFinalSummary()
 
-def _readToiExample():
-    '''
-    Reference: https://alitarhini.files.wordpress.com/2010/11/hw2.ppt
-    :return:
-    '''
-
-    m =  np.matrix('1 1;3 2;7 1;8 1;9 1;11 2;23 2;37 1;39 2;45 1;46 1;59 1')
-    utils.printf('Data: matrix {}x{}'.format(m.shape[0],m.shape[1]))
-    return m
-
-
-######################################################################################################################
-# INIT
 # ChiMerge paper: https://www.aaai.org/Papers/AAAI/1992/AAAI92-019.pdf
-######################################################################################################################
 if __name__ == '__main__':
     process_adult(attribute_column=-1, min_expected_value=0.5, max_number_intervals=6, threshold=4.61, debug_info=False)
     #example_chimerge_irisdb(attribute_column=1, min_expected_value=0.5, max_number_intervals=3, threshold=4.61, debug_info=True)
