@@ -13,6 +13,7 @@ class FeatureSlots():
         self.bit_mod64 = 0xFFFFFFFFFFFFFFFF
         self.bit_mod48 = 0xFFFFFFFFFFFF
         self.bit_mod16 = 0xFFFF
+        self.reversed_table = {}
 
     def _hash_slot_str(self, original_input, bit_mod):
         slot_val = 0
@@ -22,25 +23,6 @@ class FeatureSlots():
 
     def _hash_slot_int(self, original_input, bit_mod):
         return original_input % bit_mod
-
-    """
-    def hash_slot(self, original_input, mod=16):
-        bit_mod = None
-        if mod == 64:
-            bit_mod= 0xFFFFFFFFFFFFFFFF
-        elif mod == 48:
-            bit_mod= 0xFFFFFFFFFFFF
-        elif mod == 16:
-            bit_mod= 0xFFFF
-        else:
-            print 'Please select bit size: 16, 48 or 64'
-            return None
-
-        if type(original_input) == str or type(original_input) == np.string_:
-            return self._hash_slot_str(original_input, bit_mod)
-        elif type(original_input) == np.int64 or type(original_input) == np.int:
-            return self._hash_slot_int(original_input, bit_mod)
-    """
 
     def _merge_kv_slot(self, key, value):
         return key * self.bit_mod48 + value % self.bit_mod64
@@ -79,6 +61,8 @@ class FeatureSlots():
             name_slot = self._hash_slot_str(name, self.bit_mod16)
             interval_slot = self._hash_slot_int(interval_idx, self.bit_mod48)
             data_slots.append(self._merge_kv_slot(name_slot, interval_slot))
+
+            self.reversed_table[self._merge_kv_slot(name_slot, interval_slot)] = name + '_' + str(interval_idx)
         return data_slots
 
     def fit_transform(self, data, dttyp, discret_intervals=None):
@@ -100,4 +84,8 @@ class FeatureSlots():
             for j in range(i+1, len(data)-1):
                 combined_feature = self._hash_slot_int(data[i]+data[j], self.bit_mod64)
                 combined_features.append(combined_feature)
+
+                self.reversed_table[combined_feature] = self.reversed_table[data[i]] + '|' + self.reversed_table[data[j]]
         return combined_features
+
+

@@ -23,6 +23,21 @@ def example_chi2_irisdb(alpha, delta, min_expected_value):
     chi.chi2()
     chi.printFinalSummary()
 
+def sparse_to_matrix(data):
+    n = len(data)
+    vals = list(set([x for g in data for x in g]))
+    fea2idx = {v: vals.index(v) for v in vals}
+    m = len(vals)
+    X = np.zeros((n, m))
+    print 'feature size', m
+    for i in range(n):
+        g = data[i]
+        for v in g:
+            idx = fea2idx[v]
+            X[i, idx] = 1
+    return X
+
+
 def process_adult(attribute_column, min_expected_value, max_number_intervals, threshold, debug_info):
     attributes = [('age', 'i8'), ('workclass', 'S40'), ('fnlwgt', 'i8'), ('education', 'S40'), ('education-num', 'i8'), ('marital-status', 'S40'), ('occupation', 'S40'), ('relationship', 'S40'), ('race', 'S40'), ('sex', 'S40'), ('capital-gain', 'i8'), ('capital-loss', 'i8'), ('hours-per-week', 'i8'), ('native-country', 'S40'), ('pay', 'S40')]
     datatype = np.dtype(attributes)
@@ -41,6 +56,13 @@ def process_adult(attribute_column, min_expected_value, max_number_intervals, th
         discretizationIntervals[feature_names[i]] = chi.frequency_matrix_intervals
         discretizationDtype.append((feature_names[i], 'i8'))
 
+    """
+    s = 0
+    for i in discretizationIntervals.keys():
+        s += len(discretizationIntervals[i])
+    print 'discretizationIntervals size:', s, 'intervals: ', discretizationIntervals
+    """
+
     from featureslots import FeatureSlots
     fs = FeatureSlots()
     X_discreted = []
@@ -50,14 +72,33 @@ def process_adult(attribute_column, min_expected_value, max_number_intervals, th
         X_slots = fs.fit_transform(data=input_stream, dttyp=np.dtype(discretizationDtype), discret_intervals=discretizationIntervals)
         X_discreted.append(X_slots)
 
+    """
+    for g in X_discreted:
+        for v in g:
+            print fs.reversed_table[v],
+        print ''
+    """
+
     X_combined = []
     for i in range(len(X_discreted)):
         combined_features = fs.combine_features(X_discreted[i])
         X_combined.append(combined_features)
-        ptr = [str(Y[i,0])]
-        for f in combined_features:
-            ptr.append(str(f) + ':1')
-        print ' '.join(ptr)
+
+    """
+    for g in X_combined:
+        for v in g:
+            print fs.reversed_table[v],
+        print ''
+    """
+
+    dataTrain = sparse_to_matrix(X_combined)
+    labelTrain = Y[:,0]
+
+    from factorization_machine import FactorizationMachineClassification
+    fm = FactorizationMachineClassification()
+    w0, w, v = fm.fit(np.mat(dataTrain), labelTrain, 3, 10000, 0.01)
+    pred_result = fm.predict(np.mat(dataTrain), w0, w, v)
+    print 1 - fm.get_accuracy(pred_result, labelTrain)
 
 
 def _readAdultDataSet(attribute_column=-1, attributes=None):
