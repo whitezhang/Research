@@ -3,29 +3,31 @@
 
 import numpy as np
 
+class BaseC():
+    COMBINE_DELIMITER= '$'
+    DISCRET_DELIMITER = '^'
+    FEATUREVALUE_DELIMITER = ':'
+
 class FeatureSlots():
     '''
     '''
 
-    def __init__(self, debug_info=False, delimiter='\001'):
+    def __init__(self, debug_info=False):
         self.debug_info = debug_info
-        self.delimiter = delimiter
-        self.bit_mod64 = 0xFFFFFFFFFFFFFFFF
-        self.bit_mod48 = 0xFFFFFFFFFFFF
-        self.bit_mod16 = 0xFFFF
         self.reversed_table = {}
+        self.bit_mod = {16:0xFFFF, 48:0xFFFFFFFFFFFF, 64:0xFFFFFFFFFFFFFFFF}
 
-    def _hash_slot_str(self, original_input, bit_mod):
+    def hash_slot_str(self, original_input, bit_mod):
         slot_val = 0
         for s in original_input:
             slot_val += ord(s) & bit_mod
-        return slot_val % bit_mod
+        return slot_val % self.bit_mod[16]
 
-    def _hash_slot_int(self, original_input, bit_mod):
-        return original_input % bit_mod
+    def hash_slot_int(self, original_input, bit_mod):
+        return original_input % self.bit_mod[48]
 
-    def _merge_kv_slot(self, key, value):
-        return key * self.bit_mod48 + value % self.bit_mod64
+    def merge_kv_slot(self, key, value):
+        return key * self.bit_mod[48] + value % self.bit_mod[64]
 
     def _fit_transform_no_discret(self, data, dttyp):
         data_slots = []
@@ -40,7 +42,9 @@ class FeatureSlots():
 
     def _fit_transform_discret(self, data, dttyp, discret_intervals):
         '''
-        return: order follows the input order, save time for the following computing(feature combination)
+        input: single data stream
+        type: str
+        return: {k: v, ...}
         '''
         def pick_interval(val, intervals):
             L = len(intervals)
@@ -49,43 +53,49 @@ class FeatureSlots():
                     return i
             return L - 1
 
-        data_slots = []
+        data_slots = {}
         col_names = dttyp.names
         for name in col_names:
             fea_value = data[:].astype(dttyp, copy=False)[name]
-            if fea_value[0] == 0:
+            if self._is_invalided_feature(fea_value[0]):
                 continue
             # discretization for intervals
             interval_idx = pick_interval(fea_value, discret_intervals[name])
-            # mapping into slot
-            name_slot = self._hash_slot_str(name, self.bit_mod16)
-            interval_slot = self._hash_slot_int(interval_idx, self.bit_mod48)
-            data_slots.append(self._merge_kv_slot(name_slot, interval_slot))
+            #data_slots.append(name + BaseC.FEATUREVALUE_DELIMITER + str(interval_idx))
+            data_slots[name] = interval_idx
 
-            self.reversed_table[self._merge_kv_slot(name_slot, interval_slot)] = name + '_' + str(interval_idx)
         return data_slots
 
     def fit_transform(self, data, dttyp, discret_intervals=None):
         if discret_intervals == None:
+            # not worked
             return self._fit_transform_no_discret(data, dttyp)
         else:
             return self._fit_transform_discret(data, dttyp, discret_intervals)
 
-    def remove_invalided_feature(self):
-        pass
+    def _is_invalided_feature(self, x):
+        if x == 0:
+            return True
+        return False
 
     def combine_features(self, data):
         '''
-        combine the features which has been hashed
+        input: single data stream
+        type: dict
         '''
         from copy import deepcopy
         combined_features = deepcopy(data)
-        for i in range(len(data)-1):
-            for j in range(i+1, len(data)-1):
-                combined_feature = self._hash_slot_int(data[i]+data[j], self.bit_mod64)
-                combined_features.append(combined_feature)
+        keys = data.keys()
+        for i in range(len(keys)-1):
+            for j in range(i+1, len(keys)-1):
+                k1 = keys[i]
+                k2 = keys[j]
+                v1 = combined_features[k1]
+                v2 = combined_features[k2]
+                #sort_kv(k1, k2, v1, v2)
+                tag = k1 + BaseC.COMBINE_DELIMITER + k2
+                combined_features[tag] = 1
 
-                self.reversed_table[combined_feature] = self.reversed_table[data[i]] + '|' + self.reversed_table[data[j]]
         return combined_features
 
 
