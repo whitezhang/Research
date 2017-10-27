@@ -28,6 +28,7 @@ def process_adult(attribute_column, min_expected_value, max_number_intervals, th
     datatype = np.dtype(attributes)
 
     chi = ChiMerge(min_expected_value, max_number_intervals, threshold, debug_info)
+    # BOW model
     data, Y, feature_names = _readAdultDataSet(attribute_column, attributes)
     discretizationIntervals = {}
     discretizationDtype = []
@@ -53,7 +54,11 @@ def process_adult(attribute_column, min_expected_value, max_number_intervals, th
     for i in range(len(X_discreted)):
         combined_features = fs.combine_features(X_discreted[i])
         X_combined.append(combined_features)
-        print combined_features
+        ptr = [str(Y[i,0])]
+        for f in combined_features:
+            ptr.append(str(f) + ':1')
+        print ' '.join(ptr)
+
 
 def _readAdultDataSet(attribute_column=-1, attributes=None):
     """

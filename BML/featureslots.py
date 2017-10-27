@@ -71,6 +71,8 @@ class FeatureSlots():
         col_names = dttyp.names
         for name in col_names:
             fea_value = data[:].astype(dttyp, copy=False)[name]
+            if fea_value[0] == 0:
+                continue
             # discretization for intervals
             interval_idx = pick_interval(fea_value, discret_intervals[name])
             # mapping into slot
@@ -84,6 +86,9 @@ class FeatureSlots():
             return self._fit_transform_no_discret(data, dttyp)
         else:
             return self._fit_transform_discret(data, dttyp, discret_intervals)
+
+    def remove_invalided_feature(self):
+        pass
 
     def combine_features(self, data):
         '''
