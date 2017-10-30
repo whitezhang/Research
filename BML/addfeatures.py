@@ -90,6 +90,7 @@ class AddFeatures():
                 k2 = keys[j]
                 v1 = combined_features[k1]
                 v2 = combined_features[k2]
+                k1, k2, v1, v2 = utils.sortString(k1, k2, v1, v2)
                 tag = utils.mergeKeyValue(k1, k2, 'combine')
                 combined_features[tag] = 1
         return combined_features

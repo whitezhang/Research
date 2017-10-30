@@ -28,4 +28,10 @@ def mergeKeyValue(k, v, mode):
     else:
         raise Exception('No function foud', mode)
 
+def sortString(k1, k2, v1, v2):
+    if k1 > k2:
+        return k1, k2, v1, v2
+    else:
+        return k2, k1, v2, v1
+
 
