@@ -6,8 +6,6 @@ from chimerge import ChiMerge
 from chi2 import Chi2
 import utils
 
-from featureslots import BaseC
-
 def sparse_to_matrix(data):
     n = len(data)
     vals = list(set([x for g in data for x in g]))
@@ -42,39 +40,18 @@ def process_adult(attribute_column, min_expected_value, max_number_intervals, th
         discretizationIntervals[feature_names[i]] = chi.frequency_matrix_intervals
         discretizationDtype.append((feature_names[i], 'i8'))
 
-    """
-    s = 0
-    for i in discretizationIntervals.keys():
-        s += len(discretizationIntervals[i])
-    print 'discretizationIntervals size:', s, 'intervals: ', discretizationIntervals
-    """
-    # feature chimerge and combination
-    from featureslots import FeatureSlots
-    fs = FeatureSlots()
-    X_discreted = []
-    for i in range(data.shape[0]):
+    # addfeatures
+    from addfeatures import AddFeatures
+    af_model = AddFeatures()
+    X_parsed = []
+    for g in range(data.shape[0]):
         input_stream = np.zeros((1,),dtype=object)
         input_stream[0] = np.asarray(data[i,:])
-        X_slots = fs.fit_transform(data=input_stream, dttyp=np.dtype(discretizationDtype), discret_intervals=discretizationIntervals)
-        X_discreted.append(X_slots)
-
-    X_combined = []
-    for i in range(len(X_discreted)):
-        combined_features = fs.combine_features(X_discreted[i])
-        X_combined.append(combined_features)
-
-    # hashing for features
-    X_hash = []
-    for g in X_combined:
-        for k, v in g.items():
-            hk = fs.hash_slot_str(k, 16)
-            vk = fs.hash_slot_int(v, 64)
-            hash_value = fs.merge_kv_slot(hk, vk)
-            print hash_value,
-        print ''
+        X_slots = af_model.fit_transform(data=input_stream, dttyp=np.dtype(discretizationDtype), discret_intervals=discretizationIntervals)
+        X_parsed.append(X_slots)
 
     # fm training
-    dataTrain = sparse_to_matrix(X_combined)
+    dataTrain = sparse_to_matrix(X_parsed)
     labelTrain = Y[:,0]
 
     from factorization_machine import FactorizationMachineClassification
@@ -118,7 +95,7 @@ def _readAdultDataSet(attribute_column=-1, attributes=None):
     datatype = np.dtype(attributes)
 
     #pathfn = 'adult/adult.data'
-    pathfn = 'adult/adult.small'
+    pathfn = 'adult/adult.small200'
     data = []
     Y = []
 
@@ -136,7 +113,8 @@ def _readAdultDataSet(attribute_column=-1, attributes=None):
                 elif g[0] == 'pay'  and value == '<=50K':
                     Y.append(0)
                 elif value.dtype == np.dtype('S40'):
-                    tag = str(typ) + BaseC.DISCRET_DELIMITER + str(value)
+                    #tag = str(typ) + BaseC.DISCRET_DELIMITER + str(value)
+                    tag = utils.mergeKeyValue(str(typ), str(value), 'discret')
                     tmpdict[tag] = 1
                 else:
                     tmpdict[typ] = value

@@ -46,7 +46,7 @@ class FactorizationMachineClassification():
                                     (dataMatrix[x, i] * inter_1[0, j] -\
                                     v[i, j] * dataMatrix[x, i] * dataMatrix[x, i])
 
-            if it % 1000 == 0:
+            if it % 10 == 0:
                 print "\t------- iter: ", it, " , cost: ", \
                 self.get_cost(self.predict(dataMatrix, w0, w, v), classLabels)
         return w0, w, v
