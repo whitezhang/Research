@@ -1,6 +1,8 @@
 import sys
 import numpy as np
 from random import normalvariate
+from dynamic_plot import plt_dynamic
+import matplotlib.pyplot as plt
 
 class FactorizationMachineClassification():
     def __init__(self):
@@ -19,10 +21,13 @@ class FactorizationMachineClassification():
                 v[i, j] = normalvariate(0, 0.2)
         return v
 
-    def fit(self, dataMatrix, classLabels, k, max_iter, alpha):
+    def fit(self, dataMatrix, classLabels, k, max_iter, alpha, show_plot=False):
         '''
         train by sgd
         '''
+        if show_plot:
+            fig, ax = plt.subplots(1, 1)
+            xs, ys = [], []
         m, n = dataMatrix.shape
         w = np.zeros((n, 1))
         w0 = 0
@@ -46,9 +51,16 @@ class FactorizationMachineClassification():
                                     (dataMatrix[x, i] * inter_1[0, j] -\
                                     v[i, j] * dataMatrix[x, i] * dataMatrix[x, i])
 
+            if show_plot == True:
+                cost = self.get_cost(self.predict(dataMatrix, w0, w, v), classLabels)
+                xs.append(it)
+                ys.append(cost[0,0])
+                plt_dynamic(xs, ys, ax)
+            """
             if it % 10 == 0:
                 print "\t------- iter: ", it, " , cost: ", \
                 self.get_cost(self.predict(dataMatrix, w0, w, v), classLabels)
+            """
         return w0, w, v
 
     def get_cost(self, predict, classLabels):

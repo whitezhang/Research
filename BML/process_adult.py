@@ -56,7 +56,7 @@ def process_adult(attribute_column, min_expected_value, max_number_intervals, th
 
     from factorization_machine import FactorizationMachineClassification
     fm = FactorizationMachineClassification()
-    w0, w, v = fm.fit(np.mat(dataTrain), labelTrain, 3, 10000, 0.01)
+    w0, w, v = fm.fit(np.mat(dataTrain), labelTrain, 3, 10000, 0.01, True)
     pred_result = fm.predict(np.mat(dataTrain), w0, w, v)
     print 1 - fm.get_accuracy(pred_result, labelTrain)
 
