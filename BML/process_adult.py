@@ -20,6 +20,30 @@ def sparse_to_matrix(data):
             X[i, idx] = 1
     return X
 
+def process_adult_trad(attribute_column, min_expected_value, max_number_intervals, threshold, debug_info):
+    attributes = [('age', 'i8'), ('workclass', 'S40'), ('fnlwgt', 'i8'), ('education', 'S40'), ('education-num', 'i8'), ('marital-status', 'S40'), ('occupation', 'S40'), ('relationship', 'S40'), ('race', 'S40'), ('sex', 'S40'), ('capital-gain', 'i8'), ('capital-loss', 'i8'), ('hours-per-week', 'i8'), ('native-country', 'S40'), ('pay', 'S40')]
+    datatype = np.dtype(attributes)
+    # BOW model
+    data, Y, feature_names = _readAdultDataSet(attribute_column, attributes)
+    from sklearn.svm import SVC
+    from sklearn.model_selection import LeavePOut
+    clf = SVC()
+
+    data = np.asarray(data)
+    Y = np.asarray(Y)
+    test_num = int(data.shape[0] * 0.3)
+    lpo = LeavePOut(p=test_num)
+    for train_index, test_index in lpo.split(data):
+        X_train, X_test = data[train_index], data[test_index]
+        y_train, y_test = Y[train_index], Y[test_index]
+        clf.fit(X_train, y_train)
+        pred = clf.predict(X_test)
+        acc = 0
+        for i in range(len(pred)):
+            if pred[i] == y_test[i]:
+                acc += 1
+        print 1.*acc/len(pred)
+
 def process_adult(attribute_column, min_expected_value, max_number_intervals, threshold, debug_info):
     attributes = [('age', 'i8'), ('workclass', 'S40'), ('fnlwgt', 'i8'), ('education', 'S40'), ('education-num', 'i8'), ('marital-status', 'S40'), ('occupation', 'S40'), ('relationship', 'S40'), ('race', 'S40'), ('sex', 'S40'), ('capital-gain', 'i8'), ('capital-loss', 'i8'), ('hours-per-week', 'i8'), ('native-country', 'S40'), ('pay', 'S40')]
     datatype = np.dtype(attributes)
@@ -27,7 +51,6 @@ def process_adult(attribute_column, min_expected_value, max_number_intervals, th
     chi = ChiMerge(min_expected_value, max_number_intervals, threshold, debug_info)
     # BOW model
     data, Y, feature_names = _readAdultDataSet(attribute_column, attributes)
-
     # Chimerge
     discretizationIntervals = {}
     discretizationDtype = []
