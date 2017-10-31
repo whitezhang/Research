@@ -44,7 +44,7 @@ def process_adult(attribute_column, min_expected_value, max_number_intervals, th
     from addfeatures import AddFeatures
     af_model = AddFeatures()
     X_parsed = []
-    for g in range(data.shape[0]):
+    for i in range(data.shape[0]):
         input_stream = np.zeros((1,),dtype=object)
         input_stream[0] = np.asarray(data[i,:])
         X_slots = af_model.fit_transform(data=input_stream, dttyp=np.dtype(discretizationDtype), discret_intervals=discretizationIntervals)
@@ -111,7 +111,7 @@ def _readAdultDataSet(attribute_column=-1, attributes=None):
                 if g[0] == 'pay' and value == '>50K':
                     Y.append(1)
                 elif g[0] == 'pay'  and value == '<=50K':
-                    Y.append(0)
+                    Y.append(-1)
                 elif value.dtype == np.dtype('S40'):
                     #tag = str(typ) + BaseC.DISCRET_DELIMITER + str(value)
                     tag = utils.mergeKeyValue(str(typ), str(value), 'discret')
