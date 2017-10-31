@@ -1,7 +1,6 @@
 import sys
 import numpy as np
 from random import normalvariate
-from dynamic_plot import plt_dynamic
 import matplotlib.pyplot as plt
 
 class FactorizationMachineClassification():
@@ -25,9 +24,14 @@ class FactorizationMachineClassification():
         '''
         train by sgd
         '''
+        xmin, xmax = 0, 20
+        ymin, ymax = 0, 500
+        ys = []
         if show_plot:
-            fig, ax = plt.subplots(1, 1)
-            xs, ys = [], []
+            import numpy as np
+            plt.axis([xmin, xmax, ymin, ymax])
+            #plt.ion()
+
         m, n = dataMatrix.shape
         w = np.zeros((n, 1))
         w0 = 0
@@ -53,14 +57,18 @@ class FactorizationMachineClassification():
 
             if show_plot == True:
                 cost = self.get_cost(self.predict(dataMatrix, w0, w, v), classLabels)
-                xs.append(it)
                 ys.append(cost[0,0])
-                plt_dynamic(xs, ys, ax)
-            """
-            if it % 10 == 0:
-                print "\t------- iter: ", it, " , cost: ", \
-                self.get_cost(self.predict(dataMatrix, w0, w, v), classLabels)
-            """
+                ax = plt.gca()
+                (xmin_now, xmax_now) = ax.get_xlim()
+                if xmax_now > xmax:
+                    xmax = x_now + 100
+                ymin = min(ys)
+                ymax = max(ys)
+                ax.set_xlim(xmin, xmax)
+                ax.set_ylim(ymin, ymax)
+                plt.scatter(it, cost[0,0])
+                plt.pause(0.01)
+                print "\t------- iter: ", it, " , cost: ", cost[0,0]
         return w0, w, v
 
     def get_cost(self, predict, classLabels):
