@@ -54,11 +54,22 @@ def process_adult(attribute_column, min_expected_value, max_number_intervals, th
     dataTrain = sparse_to_matrix(X_parsed)
     labelTrain = Y[:,0]
 
+    # kfold validation
     from factorization_machine import FactorizationMachineClassification
+    from sklearn.model_selection import LeavePOut
+
+    test_num = int(dataTrain.shape[0] * 0.3)
+    lpo = LeavePOut(p=test_num)
     fm = FactorizationMachineClassification()
-    w0, w, v = fm.fit(np.mat(dataTrain), labelTrain, 3, 10000, 0.01, True)
-    pred_result = fm.predict(np.mat(dataTrain), w0, w, v)
-    print 1 - fm.get_accuracy(pred_result, labelTrain)
+    for train_index, test_index in lpo.split(np.array(dataTrain)):
+        X_train, X_test = dataTrain[train_index], dataTrain[test_index]
+        y_train, y_test = labelTrain[train_index], labelTrain[test_index]
+        w0, w, v = fm.fit_and_validate(np.mat(X_train), y_train, np.mat(X_test), y_test, 3, 10000, 0.01, True)
+        break
+        #pred_result = fm.predict(np.mat(X_test), w0, w, v)
+        #w0, w, v = fm.fit(np.mat(dataTrain), labelTrain, 3, 10000, 0.01, True)
+        #pred_result = fm.predict(np.mat(dataTrain), w0, w, v)
+    #print 1 - fm.get_accuracy(pred_result, labelTrain)
 
 
 def _readAdultDataSet(attribute_column=-1, attributes=None):
@@ -95,7 +106,7 @@ def _readAdultDataSet(attribute_column=-1, attributes=None):
     datatype = np.dtype(attributes)
 
     #pathfn = 'adult/adult.data'
-    pathfn = 'adult/adult.small200'
+    pathfn = 'adult/adult.small'
     data = []
     Y = []
 

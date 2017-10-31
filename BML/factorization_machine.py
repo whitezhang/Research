@@ -43,7 +43,7 @@ class FactorizationMachineClassification():
                                 v[i, j] * dataMatrix[x, i] * dataMatrix[x, i])
         return w, w0, v
 
-    def fit(self, dataMatrix, classLabels, k, max_iter, alpha, show_plot=False):
+    def fit_and_validate(self, X_train, y_train, X_test, y_test, k, max_iter, alpha, show_plot=False):
         '''
         fit
         '''
@@ -57,16 +57,17 @@ class FactorizationMachineClassification():
         ax2.set_xlim(xmin, xmax)
         ax2.set_ylim(ymin_acc, ymax_acc)
 
-        m, n = dataMatrix.shape
+        m, n = X_train.shape
         w = np.zeros((n, 1))
         w0 = 0
         v = self.initialize(n, k)
 
         for it in xrange(max_iter):
-            w, w0, v = self.train_once(dataMatrix, classLabels, k, alpha, w, w0, v)
-            accuracy = self.get_accuracy(self.predict(dataMatrix, w0, w, v), classLabels)
-            cost = self.get_cost(self.predict(dataMatrix, w0, w, v), classLabels)
-            print "\t------- iter: ", it, " , cost: ", cost[0,0], "accuracy: ", 1-accuracy
+            w, w0, v = self.train_once(X_train, y_train, k, alpha, w, w0, v)
+            accuracy_train = 1 - self.get_accuracy(self.predict(X_train, w0, w, v), y_train)
+            accuracy_test = 1 - self.get_accuracy(self.predict(X_test, w0, w, v), y_test)
+            cost = self.get_cost(self.predict(X_train, w0, w, v), y_train)
+            print "\t------- iter: ", it, " , cost: ", cost[0,0], "accuracy_train: ", accuracy_train, "accuracy_test:", accuracy_test
 
             # plot
             if show_plot == True:
@@ -74,13 +75,14 @@ class FactorizationMachineClassification():
                 #ax = plt.gca()
                 (xmin_now, xloss_now) = ax1.get_xlim()
                 if xloss_now < it:
-                    xmax += 100
+                    xmax += 20
                 ymin = min(ys)
                 ymax = max(ys)
                 ax1.set_xlim(xmin, xmax)
-                ax1.set_ylim(ymin_loss, ymax_loss)
+                ax1.set_ylim(ymin, ymax)
                 ax1.scatter(it, cost[0,0], c='b')
-                ax2.scatter(it, accuracy, c='r')
+                ax2.scatter(it, accuracy_train, c='r')
+                ax2.scatter(it, accuracy_test, c='g')
                 plt.pause(0.01)
         return w0, w, v
 
