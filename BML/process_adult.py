@@ -27,7 +27,9 @@ def process_adult_trad(attribute_column, min_expected_value, max_number_interval
     data, Y, feature_names = _readAdultDataSet(attribute_column, attributes)
     from sklearn.svm import SVC
     from sklearn.model_selection import LeavePOut
-    clf = SVC()
+    #clf = SVC(class_weight='balanced', kernel='rbf')
+    #clf = SVC(class_weight='balanced', kernel='poly')
+    clf = SVC(class_weight='balanced', kernel='linear')
 
     data = np.asarray(data)
     Y = np.asarray(Y)
@@ -37,12 +39,19 @@ def process_adult_trad(attribute_column, min_expected_value, max_number_interval
         X_train, X_test = data[train_index], data[test_index]
         y_train, y_test = Y[train_index], Y[test_index]
         clf.fit(X_train, y_train)
-        pred = clf.predict(X_test)
-        acc = 0
-        for i in range(len(pred)):
-            if pred[i] == y_test[i]:
-                acc += 1
-        print 1.*acc/len(pred)
+        pred_train = clf.predict(X_train)
+        pred_test = clf.predict(X_test)
+        acc_train = 0
+        for i in range(len(pred_train)):
+            if pred_train[i] == y_train[i]:
+                acc_train += 1
+        acc_test = 0
+        for i in range(len(pred_test)):
+            if pred_test[i] == y_test[i]:
+                acc_test += 1
+        accuracy_train = 1.*acc_train/len(pred_train)
+        accuracy_test = 1.*acc_test/len(pred_test)
+        print 'train: ', accuracy_train, 'test: ', accuracy_test
 
 def process_adult(attribute_column, min_expected_value, max_number_intervals, threshold, debug_info):
     attributes = [('age', 'i8'), ('workclass', 'S40'), ('fnlwgt', 'i8'), ('education', 'S40'), ('education-num', 'i8'), ('marital-status', 'S40'), ('occupation', 'S40'), ('relationship', 'S40'), ('race', 'S40'), ('sex', 'S40'), ('capital-gain', 'i8'), ('capital-loss', 'i8'), ('hours-per-week', 'i8'), ('native-country', 'S40'), ('pay', 'S40')]
@@ -162,4 +171,5 @@ def _readAdultDataSet(attribute_column=-1, attributes=None):
 
 # ChiMerge paper: https://www.aaai.org/Papers/AAAI/1992/AAAI92-019.pdf
 if __name__ == '__main__':
-    process_adult(attribute_column=-1, min_expected_value=0.5, max_number_intervals=6, threshold=4.61, debug_info=False)
+    #process_adult(attribute_column=-1, min_expected_value=0.5, max_number_intervals=6, threshold=4.61, debug_info=False)
+    process_adult_trad(attribute_column=-1, min_expected_value=0.5, max_number_intervals=6, threshold=4.61, debug_info=False)
