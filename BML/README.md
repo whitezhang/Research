@@ -10,8 +10,8 @@ The framework is designed as follows:
 
 ## Experiments
 ### SK models (30,000+ sampels)
-LR-l1
 ```
+LR-l1
     alpha: 0.5 Average accuracy, train:  0.853106476533 test:  0.851816562766
     alpha: 1 Average accuracy, train:  0.853029655357 test:  0.852737797205
     alpha: 5 Average accuracy, train:  0.85352110843 test:  0.851570976651
