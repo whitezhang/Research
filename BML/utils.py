@@ -10,11 +10,11 @@ def printf(msg):
     strtowrite = "[{}] {}".format(datetime.now(), msg)
     print(strtowrite)
 
-def sortDictByValue(x, desc):
+def sortDictByValue(x, desc=True):
     sorted_x = sorted(x.items(), key=operator.itemgetter(1),reverse=desc)
     return sorted_x
 
-def sortDictByKey(x, desc):
+def sortDictByKey(x, desc=True):
     sorted_x = sorted(x.items(), key=operator.itemgetter(0),reverse=desc)
     return sorted_x
 

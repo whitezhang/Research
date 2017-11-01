@@ -6,6 +6,13 @@ from chimerge import ChiMerge
 from chi2 import Chi2
 import utils
 
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.feature_extraction import DictVectorizer
+from sklearn.cross_validation import StratifiedKFold
+from sklearn import metrics
+from sklearn.ensemble import RandomForestClassifier
+
 def sparse_to_matrix(data):
     n = len(data)
     vals = list(set([x for g in data for x in g]))
@@ -20,38 +27,73 @@ def sparse_to_matrix(data):
             X[i, idx] = 1
     return X
 
+
+def feature_importance_learning(dataTrain, labelTrain, feature_names, cut_ratio):
+    '''
+    LR, RF
+    '''
+    n_folds = 3
+
+    feature_candidates = {}
+    features_learned = {}
+    depth = 40
+    for i, (train_index, test_index) in enumerate(StratifiedKFold(np.asarray(labelTrain).flatten(), n_folds=n_folds, shuffle=True)):
+        X_train, X_test = dataTrain[train_index], dataTrain[test_index]
+        y_train, y_test = labelTrain[train_index], labelTrain[test_index]
+        clf = RandomForestClassifier(max_depth=depth, random_state=0)
+        clf.fit(X_train, y_train)
+        for i in range(len(feature_names)):
+            features_learned[feature_names[i]] = clf.feature_importances_[i]
+
+    feature_num = len(feature_names)
+    cut_number = int(feature_num * cut_ratio)
+    feature_candidates = utils.sortDictByValue(features_learned, True)
+    print 'Features numbers: ', feature_num, 'Now: ', cut_number
+
+    features = [x[0] for x in feature_candidates[:cut_number]]
+    return features
+
+
+
+
 def process_adult_trad(attribute_column, min_expected_value, max_number_intervals, threshold, debug_info):
     attributes = [('age', 'i8'), ('workclass', 'S40'), ('fnlwgt', 'i8'), ('education', 'S40'), ('education-num', 'i8'), ('marital-status', 'S40'), ('occupation', 'S40'), ('relationship', 'S40'), ('race', 'S40'), ('sex', 'S40'), ('capital-gain', 'i8'), ('capital-loss', 'i8'), ('hours-per-week', 'i8'), ('native-country', 'S40'), ('pay', 'S40')]
     datatype = np.dtype(attributes)
     # BOW model
     data, Y, feature_names = _readAdultDataSet(attribute_column, attributes)
-    from sklearn.svm import SVC
-    from sklearn.model_selection import LeavePOut
-    #clf = SVC(class_weight='balanced', kernel='rbf')
-    #clf = SVC(class_weight='balanced', kernel='poly')
-    clf = SVC(class_weight='balanced', kernel='linear')
 
-    data = np.asarray(data)
-    Y = np.asarray(Y)
-    test_num = int(data.shape[0] * 0.3)
-    lpo = LeavePOut(p=test_num)
-    for train_index, test_index in lpo.split(data):
-        X_train, X_test = data[train_index], data[test_index]
-        y_train, y_test = Y[train_index], Y[test_index]
-        clf.fit(X_train, y_train)
-        pred_train = clf.predict(X_train)
-        pred_test = clf.predict(X_test)
-        acc_train = 0
-        for i in range(len(pred_train)):
-            if pred_train[i] == y_train[i]:
-                acc_train += 1
-        acc_test = 0
-        for i in range(len(pred_test)):
-            if pred_test[i] == y_test[i]:
-                acc_test += 1
-        accuracy_train = 1.*acc_train/len(pred_train)
-        accuracy_test = 1.*acc_test/len(pred_test)
-        print 'train: ', accuracy_train, 'test: ', accuracy_test
+    n_folds = 3
+    #dataTrain = np.asarray(data)
+    #labelTrain = np.asarray(Y)
+
+    for cut_ratio in [0.1, 0.2, 0.4, 0.6, 0.8, 1]:
+        feature_selected = feature_importance_learning(np.asarray(data), np.asarray(Y), feature_names, cut_ratio)
+        data_idx = []
+        for i in range(len(feature_names)):
+            if feature_names[i] in feature_selected:
+                data_idx.append(i)
+        data_selected = data[:, data_idx]
+        dataTrain = np.asarray(data_selected)
+        labelTrain = np.asarray(Y)
+
+        alphas = [0.5, 1, 5, 10, 100]
+        #alphas = [10, 20, 50, 200]
+        for alpha in alphas:
+            score_train = []
+            score_test = []
+            for i, (train_index, test_index) in enumerate(StratifiedKFold(np.asarray(Y).flatten(), n_folds=n_folds, shuffle=True)):
+                #clf = SVC(class_weight='balanced', kernel='linear', C=alpha)
+                #clf = RandomForestClassifier(max_depth=alpha, random_state=0)
+                clf = LogisticRegression(penalty='l1', C=alpha)
+                X_train, X_test = dataTrain[train_index], dataTrain[test_index]
+                y_train, y_test = labelTrain[train_index], labelTrain[test_index]
+                clf.fit(X_train, y_train)
+                pred_train = clf.predict(X_train)
+                pred_test = clf.predict(X_test)
+                score_train.append(metrics.accuracy_score(y_train, pred_train))
+                score_test.append(metrics.accuracy_score(y_test, pred_test))
+            print 'cut_ratio:', cut_ratio, 'alpha:', alpha, 'Average accuracy, train: ', 1.*sum(score_train)/len(score_train), 'test: ', 1.*sum(score_test)/len(score_test)
+
 
 def process_adult(attribute_column, min_expected_value, max_number_intervals, threshold, debug_info):
     attributes = [('age', 'i8'), ('workclass', 'S40'), ('fnlwgt', 'i8'), ('education', 'S40'), ('education-num', 'i8'), ('marital-status', 'S40'), ('occupation', 'S40'), ('relationship', 'S40'), ('race', 'S40'), ('sex', 'S40'), ('capital-gain', 'i8'), ('capital-loss', 'i8'), ('hours-per-week', 'i8'), ('native-country', 'S40'), ('pay', 'S40')]
@@ -88,20 +130,38 @@ def process_adult(attribute_column, min_expected_value, max_number_intervals, th
 
     # kfold validation
     from factorization_machine import FactorizationMachineClassification
-    from sklearn.model_selection import LeavePOut
+    from sklearn.svm import SVC
+    from sklearn import metrics
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.cross_validation import StratifiedKFold
 
-    test_num = int(dataTrain.shape[0] * 0.3)
-    lpo = LeavePOut(p=test_num)
+    n_folds = 3
+
+    # SK models
+    alphas = [0.5, 1, 5, 10, 100, 1000]
+    for alpha in alphas:
+        score_train = []
+        score_test = []
+        for i, (train_index, test_index) in enumerate(StratifiedKFold(np.asarray(labelTrain).flatten(), n_folds=n_folds, shuffle=True)):
+            #clf = SVC(class_weight='balanced', kernel='linear', C=alpha)
+            clf = LogisticRegression(penalty='l2', C=alpha)
+            X_train, X_test = dataTrain[train_index], dataTrain[test_index]
+            y_train, y_test = labelTrain[train_index], labelTrain[test_index]
+            clf.fit(X_train, y_train)
+            pred_train = clf.predict(X_train)
+            pred_test = clf.predict(X_test)
+            score_train.append(metrics.accuracy_score(y_train, pred_train))
+            score_test.append(metrics.accuracy_score(y_test, pred_test))
+        print 'alpha:', alpha, 'Average accuracy, train: ', 1.*sum(score_train)/len(score_train), 'test: ', 1.*sum(score_test)/len(score_test)
+    return
+
+    # FM model
     fm = FactorizationMachineClassification()
-    for train_index, test_index in lpo.split(np.array(dataTrain)):
+    for i, (train_index, test_index) in enumerate(StratifiedKFold(np.asarray(labelTrain).flatten(), n_folds=n_folds, shuffle=True)):
         X_train, X_test = dataTrain[train_index], dataTrain[test_index]
         y_train, y_test = labelTrain[train_index], labelTrain[test_index]
         w0, w, v = fm.fit_and_validate(np.mat(X_train), y_train, np.mat(X_test), y_test, 3, 10000, 0.01, True)
         break
-        #pred_result = fm.predict(np.mat(X_test), w0, w, v)
-        #w0, w, v = fm.fit(np.mat(dataTrain), labelTrain, 3, 10000, 0.01, True)
-        #pred_result = fm.predict(np.mat(dataTrain), w0, w, v)
-    #print 1 - fm.get_accuracy(pred_result, labelTrain)
 
 
 def _readAdultDataSet(attribute_column=-1, attributes=None):
@@ -137,8 +197,9 @@ def _readAdultDataSet(attribute_column=-1, attributes=None):
         return
     datatype = np.dtype(attributes)
 
-    #pathfn = 'adult/adult.data'
-    pathfn = 'adult/adult.small'
+    pathfn = 'adult/adult.data'
+    #pathfn = 'adult/adult.small'
+    #pathfn = 'adult/adult.1w'
     data = []
     Y = []
 
@@ -163,7 +224,6 @@ def _readAdultDataSet(attribute_column=-1, attributes=None):
                     tmpdict[typ] = value
             data.append(tmpdict)
 
-    from sklearn.feature_extraction import DictVectorizer
     dv = DictVectorizer(sparse=False)
     X = dv.fit_transform(data)
     return np.matrix(X, dtype='i8'), np.matrix(Y).T, dv.get_feature_names()
@@ -171,5 +231,5 @@ def _readAdultDataSet(attribute_column=-1, attributes=None):
 
 # ChiMerge paper: https://www.aaai.org/Papers/AAAI/1992/AAAI92-019.pdf
 if __name__ == '__main__':
-    #process_adult(attribute_column=-1, min_expected_value=0.5, max_number_intervals=6, threshold=4.61, debug_info=False)
+    #process_adult(attribute_column=-1, min_expected_value=0.5, max_number_intervals=15, threshold=4.61, debug_info=False)
     process_adult_trad(attribute_column=-1, min_expected_value=0.5, max_number_intervals=6, threshold=4.61, debug_info=False)
