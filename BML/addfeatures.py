@@ -4,7 +4,7 @@
 import numpy as np
 import utils
 
-class FeatureSlots():
+class AddFeatures():
     '''
     '''
 
@@ -13,18 +13,36 @@ class FeatureSlots():
         self.reversed_table = {}
         self.bit_mod = {16:0xFFFF, 48:0xFFFFFFFFFFFF, 64:0xFFFFFFFFFFFFFFFF}
 
+    def _is_invalided_feature(self, x):
+        '''
+        usage: remove 0 values from feature list
+        '''
+        if x == 0:
+            return True
+        return False
+
     def hash_slot_str(self, original_input, bit_mod):
+        '''
+        hash str
+        '''
         slot_val = 0
         for s in original_input:
             slot_val += ord(s) & bit_mod
         return slot_val % self.bit_mod[16]
 
     def hash_slot_int(self, original_input, bit_mod):
+        '''
+        hash int
+        '''
         return original_input % self.bit_mod[48]
 
     def merge_kv_slot(self, key, value):
+        '''
+        merge key and value, and hash into 64 bits
+        '''
         return key * self.bit_mod[48] + value % self.bit_mod[64]
 
+    # @discarded
     def _fit_transform_no_discret(self, data, dttyp):
         data_slots = []
         col_names = dttyp.names
@@ -62,23 +80,7 @@ class FeatureSlots():
 
         return data_slots
 
-    def fit_transform(self, data, dttyp, discret_intervals=None):
-        if discret_intervals == None:
-            # not worked
-            return self._fit_transform_no_discret(data, dttyp)
-        else:
-            return self._fit_transform_discret(data, dttyp, discret_intervals)
-
-    def _is_invalided_feature(self, x):
-        if x == 0:
-            return True
-        return False
-
-    def combine_features(self, data):
-        '''
-        input: single data stream
-        type: dict
-        '''
+    def _fit_transform_combine(self, data):
         from copy import deepcopy
         combined_features = deepcopy(data)
         keys = data.keys()
@@ -88,11 +90,28 @@ class FeatureSlots():
                 k2 = keys[j]
                 v1 = combined_features[k1]
                 v2 = combined_features[k2]
-                #sort_kv(k1, k2, v1, v2)
-                #tag = k1 + BaseC.COMBINE_DELIMITER + k2
+                k1, k2, v1, v2 = utils.sortString(k1, k2, v1, v2)
                 tag = utils.mergeKeyValue(k1, k2, 'combine')
                 combined_features[tag] = 1
-
         return combined_features
 
+    def _fit_transform_hashing(self, data):
+        hashed_features = []
+        for k, v in data.items():
+            hk = self.hash_slot_str(k, 16)
+            vk = self.hash_slot_int(v, 48)
+            hash_value = self.merge_kv_slot(hk, vk)
+            hashed_features.append(hash_value)
+        return hashed_features
+
+    def fit_transform(self, data, dttyp, discret_intervals=None):
+        if discret_intervals == None:
+            # @discarded
+            #return self._fit_transform_no_discret(data, dttyp)
+            pass
+        else:
+            data_discreted = self._fit_transform_discret(data, dttyp, discret_intervals)
+            data_combined = self._fit_transform_combine(data_discreted)
+            data_hashed = self._fit_transform_hashing(data_combined)
+            return data_hashed
 
