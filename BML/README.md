@@ -8,8 +8,8 @@ The framework is designed as follows:
 4. do combination for features (do hash)
 5. use fm to train the data
 
-
-## SK models (30,000+ sampels)
+## Experiments
+### SK models (30,000+ sampels)
 LR-l1
     alpha: 0.5 Average accuracy, train:  0.853106476533 test:  0.851816562766
     alpha: 1 Average accuracy, train:  0.853029655357 test:  0.852737797205
@@ -69,7 +69,7 @@ RF for feature selection:
     cut_ratio: 1 alpha: 10 Average accuracy, train:  0.854012476617 test:  0.85190877959
     cut_ratio: 1 alpha: 100 Average accuracy, train:  0.854135350319 test:  0.850465387797
 
-## BML (discretization, combination of features)
+### BML (discretization, combination of features)
 FM: cost:  941.893938389 accuracy_train:  0.845714285714 accuracy_test: 0.816666666667
 SVM-RBF: Average accuracy, train:  0.745498872186 test:  0.738515461569
 SVM-LINEAR: (C has been grid searched)
@@ -93,6 +93,10 @@ LR-l2
     alpha: 5 Average accuracy, train:  0.879849931896 test:  0.842599796872
     alpha: 10 Average accuracy, train:  0.880499861896 test:  0.842199306913
     alpha: 100 Average accuracy, train:  0.883649846911 test:  0.835199866717
+
+## Evaluation
+From the above results, we can conclude that some features within the data is not suitable for discretization, especially the discret data. The data which has been processed by BML is easily overfitting, no matter which model is used for training. The model performance well on the data that only been dict vectorized. No overfitting happens within the results(except the RF with large depth). It is also interseting to find that feature selection does not outperform the one that does not. It is also proved that feature selection by RF could reduce the features scales in order to save time for the following model training.
+
 
 ### Some points
 overfitting does not begin until the error decreases slowly
