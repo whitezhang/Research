@@ -8,7 +8,7 @@ The framework is designed as follows:
 4. do combination for features (do hash)
 5. use fm to train the data
 
-## Experiments
+## Experiments and Evaluation
 ### SK models (30,000+ sampels)
 ```
 LR-l1
@@ -31,7 +31,10 @@ RF: (max_depth)
     alpha: 8 Average accuracy, train:  0.858699856786 test:  0.846799826953
     alpha: 20 Average accuracy, train:  0.938849869688 test:  0.844800076888
     alpha: 50 Average accuracy, train:  0.988749999944 test:  0.835400006707
+```
+LR with l1 regularization term achieves about 85% accuracy, while others perform not very well. The following outputs show the accuracy of using LR with feature selection(RandomForest). It is interesting to find that the accuracy is from 84% to about 85%. In others the feature selection does not impact the accuracy that much. However, this method, which use random forest to select features, can be used to do reduction.
 
+```
 RF for feature selection:
     Features numbers:  108 Now:  10
     cut_ratio: 0.1 alpha: 0.5 Average accuracy, train:  0.845290362896 test:  0.844906435762
@@ -71,6 +74,8 @@ RF for feature selection:
     cut_ratio: 1 alpha: 100 Average accuracy, train:  0.854135350319 test:  0.850465387797
 ```
 
+The following outputs is obtained by feature discretization and combination. It is easily to know that all of the models are overfitting, expect SVM with RBF kernel. Within LR model, even using l2 regularization term can not solve overfitting. So the main problem is not about the model, but the data itself. discretization is useful in same cases, not not suitable in this case. The linearity is lost when performing discretization, such as the age, working hours and etc. The only information left is the features without any relations.
+
 ### BML (discretization, combination of features)
 ```
 FM: cost:  941.893938389 accuracy_train:  0.845714285714 accuracy_test: 0.816666666667
@@ -98,13 +103,7 @@ LR-l2
     alpha: 100 Average accuracy, train:  0.883649846911 test:  0.835199866717
 ```
 
-## Evaluation
-From the above results, we can conclude that some features within the data is not suitable for discretization, especially the discret data. The data which has been processed by BML is easily overfitting, no matter which model is used for training. The model performance well on the data that only been dict vectorized. No overfitting happens within the results(except the RF with large depth). It is also interseting to find that feature selection does not outperform the one that does not. It is also proved that feature selection by RF could reduce the features scales in order to save time for the following model training.
+This figure illustrates the training process of FM model. From which we can obtain that the training accuracy becomes better while the test accuracy decreases. In this case, early stopping criteria can not be used since the loss is very high when train accuracy balance the test accuracy.
+<img src="./pic/figure_1.png" alt="Fig" width="800px"/>
 
-
-### Some points
-overfitting does not begin until the error decreases slowly
-weight decay does not work all the time
-
-
-<img src="./pic/figure_1.png" alt="Homepage" width="300px"/>
+Sometimes, overfitting does not begin until the error decreases slowly. In this situation, the early stopping can be used to solve this problem.
