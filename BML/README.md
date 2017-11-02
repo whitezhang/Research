@@ -6,7 +6,7 @@ The framework is designed as follows:
 2. use chimerge to get the intervals for discretization
 3. use intervals to discret the continuous data (do hash)
 4. do combination for features (do hash)
-5. use fm to train the data
+5. fm training
 
 ## Experiments and Evaluation
 ### SK models (30,000+ sampels)
@@ -106,4 +106,4 @@ LR-l2
 This figure illustrates the training process of FM model. From which we can obtain that the training accuracy becomes better while the test accuracy decreases. In this case, early stopping criteria can not be used since the loss is very high when train accuracy balance the test accuracy.
 <img src="./pic/figure_1.png" alt="Fig" width="800px"/>
 
-Sometimes, overfitting does not begin until the error decreases slowly. In this situation, the early stopping can be used to solve this problem.
+Sometimes, overfitting does not begin until the error decreases slowly. In this situation, early stopping can be used to solve this problem.
