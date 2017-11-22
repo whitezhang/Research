@@ -12,6 +12,7 @@ from sklearn.feature_extraction import DictVectorizer
 from sklearn.cross_validation import StratifiedKFold
 from sklearn import metrics
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.neural_network import MLPClassifier
 
 def sparse_to_matrix(data):
     n = len(data)
@@ -19,13 +20,25 @@ def sparse_to_matrix(data):
     fea2idx = {v: vals.index(v) for v in vals}
     m = len(vals)
     X = np.zeros((n, m))
-    print 'feature size', m
     for i in range(n):
         g = data[i]
         for v in g:
             idx = fea2idx[v]
             X[i, idx] = 1
     return X
+
+
+def output_case(data, feature_names, label):
+    data = np.asarray(data).flatten()
+    print data
+    L = len(feature_names)
+    ptr = {}
+    for i in range(L):
+        ptr[feature_names[i]] = data[i]
+    for k, v in ptr.items():
+        if v != 0:
+            print str(k) + ':' + str(v),
+    print label
 
 
 def feature_importance_learning(dataTrain, labelTrain, feature_names, cut_ratio):
@@ -66,7 +79,8 @@ def process_adult_trad(attribute_column, min_expected_value, max_number_interval
     #dataTrain = np.asarray(data)
     #labelTrain = np.asarray(Y)
 
-    for cut_ratio in [0.1, 0.2, 0.4, 0.6, 0.8, 1]:
+    #for cut_ratio in [0.2, 0.4, 0.6, 0.8, 1]:
+    for cut_ratio in [1]:
         feature_selected = feature_importance_learning(np.asarray(data), np.asarray(Y), feature_names, cut_ratio)
         data_idx = []
         for i in range(len(feature_names)):
@@ -85,6 +99,7 @@ def process_adult_trad(attribute_column, min_expected_value, max_number_interval
                 #clf = SVC(class_weight='balanced', kernel='linear', C=alpha)
                 #clf = RandomForestClassifier(max_depth=alpha, random_state=0)
                 clf = LogisticRegression(penalty='l1', C=alpha)
+                #clf = MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=(100, 5), random_state=1)
                 X_train, X_test = dataTrain[train_index], dataTrain[test_index]
                 y_train, y_test = labelTrain[train_index], labelTrain[test_index]
                 clf.fit(X_train, y_train)
@@ -92,10 +107,24 @@ def process_adult_trad(attribute_column, min_expected_value, max_number_interval
                 pred_test = clf.predict(X_test)
                 score_train.append(metrics.accuracy_score(y_train, pred_train))
                 score_test.append(metrics.accuracy_score(y_test, pred_test))
+
+                """
+                class_coefs1 = {}
+                print clf.coef_.shape
+                for i in range(clf.coef_.shape[1]):
+                    class_coefs1[feature_names[i]] = clf.coef_[0, i]
+                sorted_class_coefs1 = utils.sortDictByValue(class_coefs1, True)
+                print sorted_class_coefs1
+                """
+                """
+                for i in range(len(y_train)):
+                    if y_train[i] != pred_train[i]:
+                        output_case(data[i,:], feature_names, y_train[i])
+                """
             print 'cut_ratio:', cut_ratio, 'alpha:', alpha, 'Average accuracy, train: ', 1.*sum(score_train)/len(score_train), 'test: ', 1.*sum(score_test)/len(score_test)
 
 
-def process_adult(attribute_column, min_expected_value, max_number_intervals, threshold, debug_info):
+def process_adult_bml(attribute_column, min_expected_value, max_number_intervals, threshold, debug_info):
     attributes = [('age', 'i8'), ('workclass', 'S40'), ('fnlwgt', 'i8'), ('education', 'S40'), ('education-num', 'i8'), ('marital-status', 'S40'), ('occupation', 'S40'), ('relationship', 'S40'), ('race', 'S40'), ('sex', 'S40'), ('capital-gain', 'i8'), ('capital-loss', 'i8'), ('hours-per-week', 'i8'), ('native-country', 'S40'), ('pay', 'S40')]
     datatype = np.dtype(attributes)
 
@@ -124,9 +153,25 @@ def process_adult(attribute_column, min_expected_value, max_number_intervals, th
         X_slots = af_model.fit_transform(data=input_stream, dttyp=np.dtype(discretizationDtype), discret_intervals=discretizationIntervals)
         X_parsed.append(X_slots)
 
+    """
+    dv = DictVectorizer(sparse=False)
+    dataTrain = dv.fit_transform(X_parsed)
+    labelTrain = Y[:,0]
+    """
+
     # fm training
+    #print af_model.reversed_table
+    ori_features_len = len(set(af_model.reversed_table.keys()))
+    parsed_features_len = len(set(af_model.reversed_table.values()))
+    print "Features space transforms from %d-dim to %d-dim" % (ori_features_len, parsed_features_len)
     dataTrain = sparse_to_matrix(X_parsed)
     labelTrain = Y[:,0]
+    """
+    for i in range(dataTrain.shape[0]):
+        for j in range(dataTrain.shape[1]):
+            print dataTrain[i,j],
+        print ''
+    """
 
     # kfold validation
     from factorization_machine import FactorizationMachineClassification
@@ -137,6 +182,7 @@ def process_adult(attribute_column, min_expected_value, max_number_intervals, th
 
     n_folds = 3
 
+    # This following models contains Sklearn models and FM model, pick one
     # SK models
     alphas = [0.5, 1, 5, 10, 100, 1000]
     for alpha in alphas:
@@ -145,6 +191,7 @@ def process_adult(attribute_column, min_expected_value, max_number_intervals, th
         for i, (train_index, test_index) in enumerate(StratifiedKFold(np.asarray(labelTrain).flatten(), n_folds=n_folds, shuffle=True)):
             #clf = SVC(class_weight='balanced', kernel='linear', C=alpha)
             clf = LogisticRegression(penalty='l2', C=alpha)
+            #clf = MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=(100, 3), random_state=1, max_iter=1000)
             X_train, X_test = dataTrain[train_index], dataTrain[test_index]
             y_train, y_test = labelTrain[train_index], labelTrain[test_index]
             clf.fit(X_train, y_train)
@@ -197,8 +244,8 @@ def _readAdultDataSet(attribute_column=-1, attributes=None):
         return
     datatype = np.dtype(attributes)
 
-    pathfn = 'adult/adult.data'
-    #pathfn = 'adult/adult.small'
+    #pathfn = 'adult/adult.data'
+    pathfn = 'adult/adult.small'
     #pathfn = 'adult/adult.1w'
     data = []
     Y = []
@@ -231,5 +278,5 @@ def _readAdultDataSet(attribute_column=-1, attributes=None):
 
 # ChiMerge paper: https://www.aaai.org/Papers/AAAI/1992/AAAI92-019.pdf
 if __name__ == '__main__':
-    #process_adult(attribute_column=-1, min_expected_value=0.5, max_number_intervals=15, threshold=4.61, debug_info=False)
-    process_adult_trad(attribute_column=-1, min_expected_value=0.5, max_number_intervals=6, threshold=4.61, debug_info=False)
+    process_adult_bml(attribute_column=-1, min_expected_value=0.5, max_number_intervals=15, threshold=4.61, debug_info=False)
+    #process_adult_trad(attribute_column=-1, min_expected_value=0.5, max_number_intervals=6, threshold=4.61, debug_info=False)

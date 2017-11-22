@@ -21,26 +21,26 @@ class AddFeatures():
             return True
         return False
 
-    def hash_slot_str(self, original_input, bit_mod):
+    def hash_slot_str(self, original_input, bit_idx):
         '''
         hash str
         '''
         slot_val = 0
         for s in original_input:
-            slot_val += ord(s) & bit_mod
-        return slot_val % self.bit_mod[16]
+            slot_val += ord(s) & self.bit_mod[bit_idx]
+        return slot_val % self.bit_mod[bit_idx]
 
-    def hash_slot_int(self, original_input, bit_mod):
+    def hash_slot_int(self, original_input, bit_idx):
         '''
         hash int
         '''
-        return original_input % self.bit_mod[48]
+        return original_input % self.bit_mod[bit_idx]
 
     def merge_kv_slot(self, key, value):
         '''
         merge key and value, and hash into 64 bits
         '''
-        return key * self.bit_mod[48] + value % self.bit_mod[64]
+        return (key * self.bit_mod[16] + value) % self.bit_mod[64]
 
     # @discarded
     def _fit_transform_no_discret(self, data, dttyp):
@@ -98,10 +98,11 @@ class AddFeatures():
     def _fit_transform_hashing(self, data):
         hashed_features = []
         for k, v in data.items():
-            hk = self.hash_slot_str(k, 16)
-            vk = self.hash_slot_int(v, 48)
+            hk = self.hash_slot_str(k, 48)
+            vk = self.hash_slot_int(v, 16)
             hash_value = self.merge_kv_slot(hk, vk)
             hashed_features.append(hash_value)
+            self.reversed_table[str(k) + str(v)] = hash_value
         return hashed_features
 
     def fit_transform(self, data, dttyp, discret_intervals=None):
@@ -112,6 +113,7 @@ class AddFeatures():
         else:
             data_discreted = self._fit_transform_discret(data, dttyp, discret_intervals)
             data_combined = self._fit_transform_combine(data_discreted)
+            return data_combined
             data_hashed = self._fit_transform_hashing(data_combined)
             return data_hashed
 

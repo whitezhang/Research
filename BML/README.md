@@ -32,7 +32,7 @@ RF: (max_depth)
     alpha: 20 Average accuracy, train:  0.938849869688 test:  0.844800076888
     alpha: 50 Average accuracy, train:  0.988749999944 test:  0.835400006707
 ```
-LR with l1 regularization term achieves about 85% accuracy, while others perform not very well. The following outputs show the accuracy of using LR with feature selection(RandomForest). It is interesting to find that the accuracy is from 84% to about 85%. In others the feature selection does not impact the accuracy that much. However, this method, which use random forest to select features, can be used to do reduction.
+LR with l1 regularization term achieves about 85% accuracy, while others perform not very well. The following outputs show the accuracy of using LR with feature selection(RandomForest). It is interesting to find that the accuracy is from 84% to about 85%. In other words, the feature selection does not impact the accuracy that much. However, this method, which use random forest to select features, can be used to do reduction.
 
 ```
 RF for feature selection:
