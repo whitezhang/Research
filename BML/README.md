@@ -74,7 +74,7 @@ RF for feature selection:
     cut_ratio: 1 alpha: 100 Average accuracy, train:  0.854135350319 test:  0.850465387797
 ```
 
-The following outputs is obtained by feature discretization and combination. It is easily to know that all of the models are overfitting, expect SVM with RBF kernel. Within LR model, even using l2 regularization term can not solve overfitting. So the main problem is not about the model, but the data itself. discretization is useful in same cases, not not suitable in this case. The linearity is lost when performing discretization, such as the age, working hours and etc. The only information left is the features without any relations.
+The following outputs is obtained by feature discretization and combination. It is easily to know that all of the models are overfitting, expect SVM with RBF kernel. Within LR model, even using l2 regularization term can not solve overfitting.
 
 ### BML (discretization, combination of features)
 ```
@@ -89,21 +89,25 @@ SVM-LINEAR: (C has been grid searched)
 
 10,000 samples
 LR-l1
-    alpha: 0.5 Average accuracy, train:  0.858300124298 test:  0.849600406951
-    alpha: 1 Average accuracy, train:  0.864900146832 test:  0.852100357006
-    alpha: 5 Average accuracy, train:  0.88040015941 test:  0.840000376762
-    alpha: 10 Average accuracy, train:  0.881399884401 test:  0.838899486829
-    alpha: 100 Average accuracy, train:  0.883850054422 test:  0.831200276596
+    alpha: 0.5 Average accuracy, train:  0.856449706768 test:  0.837599206831
+    alpha: 1 Average accuracy, train:  0.864600056826 test:  0.836400106717
+    alpha: 5 Average accuracy, train:  0.881649946906 test:  0.822700356418
+    alpha: 10 Average accuracy, train:  0.88469992942 test:  0.819100086373
+    alpha: 100 Average accuracy, train:  0.885550134434 test:  0.814500436246
+    alpha: 1000 Average accuracy, train:  0.88580002443 test:  0.811100276194
 
 LR-l2
-    alpha: 0.5 Average accuracy, train:  0.867100036837 test:  0.845399926915
-    alpha: 1 Average accuracy, train:  0.870849789344 test:  0.850899367081
-    alpha: 5 Average accuracy, train:  0.879849931896 test:  0.842599796872
-    alpha: 10 Average accuracy, train:  0.880499861896 test:  0.842199306913
-    alpha: 100 Average accuracy, train:  0.883649846911 test:  0.835199866717
+    alpha: 0.5 Average accuracy, train:  0.855900041782 test:  0.839100046777
+    alpha: 1 Average accuracy, train:  0.86305008932 test:  0.836500236706
+    alpha: 5 Average accuracy, train:  0.883200131923 test:  0.822800186437
+    alpha: 10 Average accuracy, train:  0.883999919416 test:  0.82389987649
+    alpha: 100 Average accuracy, train:  0.886949891929 test:  0.811499806249
+    alpha: 1000 Average accuracy, train:  0.886700114439 test:  0.806800146121
 ```
 
 This figure illustrates the training process of FM model. From which we can obtain that the training accuracy becomes better while the test accuracy decreases. In this case, early stopping criteria can not be used since the loss is very high when train accuracy balance the test accuracy.
 <img src="./pic/figure_1.png" alt="Fig" width="800px"/>
 
-Sometimes, overfitting does not begin until the error decreases slowly. In this situation, early stopping can be used to solve this problem.
+However, the stopping criteria may not solve the overfitting problem since the splines converge to totally different directions. The thing is the binning operation will always lose informance. However this method could handle large amount of data, and speed up the training progress. For example, in logistic regression, gradient of `W`, `dW=X*(dL/dY)`, since `X` has been simplified to 0 or 1, the multiplication operations have been reomved, which could save much time of training.
+
+SO, I guess splines methods are always to be prefered from a predictive standpoint.
