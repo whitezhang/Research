@@ -11,7 +11,11 @@ from game import Board, Game
 from mcts_pure import MCTSPlayer as MCTS_Pure
 from mcts_alphaZero import MCTSPlayer
 from policy_value_net_pytorch import PolicyValueNet  # Pytorch
+import time
 
+import matplotlib.pyplot as plt
+
+from tensorboardX import SummaryWriter
 
 class TrainPipeline():
     def __init__(self, init_model=None):
@@ -126,13 +130,15 @@ class TrainPipeline():
                "entropy:{},"
                "explained_var_old:{:.3f},"
                "explained_var_new:{:.3f}"
+               "timestamp:{:.3f}"
                ).format(kl,
                         self.lr_multiplier,
                         loss,
                         entropy,
                         explained_var_old,
-                        explained_var_new))
-        return loss, entropy
+                        explained_var_new,
+                        time.time()))
+        return loss, entropy, kl, self.lr_multiplier, explained_var_old, explained_var_new
 
     def policy_evaluate(self, n_games=10):
         """
@@ -160,12 +166,15 @@ class TrainPipeline():
     def run(self):
         """run the training pipeline"""
         try:
+            writer = SummaryWriter()
+            loss = entropy = kl = lr_multiplier = explained_var_old = explained_var_new = ts = 0
             for i in range(self.game_batch_num):
                 self.collect_selfplay_data(self.play_batch_size)
                 print("batch i:{}, episode_len:{}".format(
                         i+1, self.episode_len))
                 if len(self.data_buffer) > self.batch_size:
-                    loss, entropy = self.policy_update()
+                    loss, entropy, kl, lr_multiplier, explained_var_old, explained_var_new = self.policy_update()
+                    #loss, entropy = self.policy_update()
                 # check the performance of the current model,
                 # and save the model params
                 if (i+1) % self.check_freq == 0:
@@ -181,7 +190,18 @@ class TrainPipeline():
                                 self.pure_mcts_playout_num < 5000):
                             self.pure_mcts_playout_num += 1000
                             self.best_win_ratio = 0.0
+                writer.add_scalar('data/loss', loss, i)
+                writer.add_scalar('data/entropy', entropy, i)
+                writer.add_scalar('data/episode', self.episode_len, i)
+                writer.add_scalar('data/kl', kl, i)
+                writer.add_scalar('data/lr_m', lr_multiplier, i)
+                writer.add_scalar('data/exp_vo', explained_var_old, i)
+                writer.add_scalar('data/exp_vn', explained_var_new, i)
+                for name, param in self.policy_value_net.policy_value_net.named_parameters():
+                    writer.add_histogram(name, param.clone().cpu().data.numpy(), i)
         except KeyboardInterrupt:
+            writer.export_scalars_to_json('./all_scalars.json')
+            writer.close()
             print('\n\rquit')
 
 
