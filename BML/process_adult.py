@@ -6,14 +6,13 @@ from chimerge import ChiMerge
 from chi2 import Chi2
 import utils
 
-def example_chimerge_irisdb(attribute_column, min_expected_value, max_number_intervals, threshold, debug_info):
-    chi = ChiMerge(min_expected_value, max_number_intervals, threshold, debug_info)
-    data = _readIrisDataset(attribute_column)
-    chi.loadData(data, False)
-    chi.generateFrequencyMatrix()
-    chi.chimerge()
-    #chi.printDiscretizationInfo()
-    chi.printFinalSummary()
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.feature_extraction import DictVectorizer
+from sklearn.cross_validation import StratifiedKFold
+from sklearn import metrics
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neural_network import MLPClassifier
 
 def sparse_to_matrix(data):
     n = len(data)
@@ -21,7 +20,6 @@ def sparse_to_matrix(data):
     fea2idx = {v: vals.index(v) for v in vals}
     m = len(vals)
     X = np.zeros((n, m))
-    print 'feature size', m
     for i in range(n):
         g = data[i]
         for v in g:
@@ -30,13 +28,118 @@ def sparse_to_matrix(data):
     return X
 
 
-def process_adult(attribute_column, min_expected_value, max_number_intervals, threshold, debug_info):
+def output_matrix(data, Y):
+    for i in range(data.shape[0]):
+        ptr = []
+        for j in range(data.shape[1]):
+            ptr.append(data[i,j])
+        print '\t'.join(map(str, ptr)) + '\t' + str(Y[i,0])
+
+
+def output_case(data, feature_names, label):
+    data = np.asarray(data).flatten()
+    print data
+    L = len(feature_names)
+    ptr = {}
+    for i in range(L):
+        ptr[feature_names[i]] = data[i]
+    for k, v in ptr.items():
+        if v != 0:
+            print str(k) + ':' + str(v),
+    print label
+
+
+def feature_importance_learning(dataTrain, labelTrain, feature_names, cut_ratio):
+    '''
+    LR, RF
+    '''
+    n_folds = 3
+
+    feature_candidates = {}
+    features_learned = {}
+    depth = 40
+    for i, (train_index, test_index) in enumerate(StratifiedKFold(np.asarray(labelTrain).flatten(), n_folds=n_folds, shuffle=True)):
+        X_train, X_test = dataTrain[train_index], dataTrain[test_index]
+        y_train, y_test = labelTrain[train_index], labelTrain[test_index]
+        clf = RandomForestClassifier(max_depth=depth, random_state=0)
+        clf.fit(X_train, y_train)
+        for i in range(len(feature_names)):
+            features_learned[feature_names[i]] = clf.feature_importances_[i]
+
+    feature_num = len(feature_names)
+    cut_number = int(feature_num * cut_ratio)
+    feature_candidates = utils.sortDictByValue(features_learned, True)
+    print 'Features numbers: ', feature_num, 'Now: ', cut_number
+
+    features = [x[0] for x in feature_candidates[:cut_number]]
+    return features
+
+
+
+
+def process_adult_trad(attribute_column, min_expected_value, max_number_intervals, threshold, debug_info):
+    attributes = [('age', 'i8'), ('workclass', 'S40'), ('fnlwgt', 'i8'), ('education', 'S40'), ('education-num', 'i8'), ('marital-status', 'S40'), ('occupation', 'S40'), ('relationship', 'S40'), ('race', 'S40'), ('sex', 'S40'), ('capital-gain', 'i8'), ('capital-loss', 'i8'), ('hours-per-week', 'i8'), ('native-country', 'S40'), ('pay', 'S40')]
+    datatype = np.dtype(attributes)
+    # BOW model
+    data, Y, feature_names = _readAdultDataSet(attribute_column, attributes)
+
+    n_folds = 3
+    #dataTrain = np.asarray(data)
+    #labelTrain = np.asarray(Y)
+
+    #for cut_ratio in [0.2, 0.4, 0.6, 0.8, 1]:
+    for cut_ratio in [1]:
+        feature_selected = feature_importance_learning(np.asarray(data), np.asarray(Y), feature_names, cut_ratio)
+        data_idx = []
+        for i in range(len(feature_names)):
+            if feature_names[i] in feature_selected:
+                data_idx.append(i)
+        data_selected = data[:, data_idx]
+        dataTrain = np.asarray(data_selected)
+        labelTrain = np.asarray(Y)
+
+        alphas = [0.5, 1, 5, 10, 100]
+        #alphas = [10, 20, 50, 200]
+        for alpha in alphas:
+            score_train = []
+            score_test = []
+            for i, (train_index, test_index) in enumerate(StratifiedKFold(np.asarray(Y).flatten(), n_folds=n_folds, shuffle=True)):
+                #clf = SVC(class_weight='balanced', kernel='linear', C=alpha)
+                #clf = RandomForestClassifier(max_depth=alpha, random_state=0)
+                clf = LogisticRegression(penalty='l2', C=alpha)
+                #clf = MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=(100, 5), random_state=1)
+                X_train, X_test = dataTrain[train_index], dataTrain[test_index]
+                y_train, y_test = labelTrain[train_index], labelTrain[test_index]
+                clf.fit(X_train, y_train)
+                pred_train = clf.predict(X_train)
+                pred_test = clf.predict(X_test)
+                score_train.append(metrics.accuracy_score(y_train, pred_train))
+                score_test.append(metrics.accuracy_score(y_test, pred_test))
+
+                """
+                class_coefs1 = {}
+                print clf.coef_.shape
+                for i in range(clf.coef_.shape[1]):
+                    class_coefs1[feature_names[i]] = clf.coef_[0, i]
+                sorted_class_coefs1 = utils.sortDictByValue(class_coefs1, True)
+                print sorted_class_coefs1
+                """
+                """
+                for i in range(len(y_train)):
+                    if y_train[i] != pred_train[i]:
+                        output_case(data[i,:], feature_names, y_train[i])
+                """
+            print 'cut_ratio:', cut_ratio, 'alpha:', alpha, 'Average accuracy, train: ', 1.*sum(score_train)/len(score_train), 'test: ', 1.*sum(score_test)/len(score_test)
+
+
+def process_adult_bml(attribute_column, min_expected_value, max_number_intervals, threshold, debug_info, mode='SK'):
     attributes = [('age', 'i8'), ('workclass', 'S40'), ('fnlwgt', 'i8'), ('education', 'S40'), ('education-num', 'i8'), ('marital-status', 'S40'), ('occupation', 'S40'), ('relationship', 'S40'), ('race', 'S40'), ('sex', 'S40'), ('capital-gain', 'i8'), ('capital-loss', 'i8'), ('hours-per-week', 'i8'), ('native-country', 'S40'), ('pay', 'S40')]
     datatype = np.dtype(attributes)
 
     chi = ChiMerge(min_expected_value, max_number_intervals, threshold, debug_info)
     # BOW model
     data, Y, feature_names = _readAdultDataSet(attribute_column, attributes)
+    # Chimerge
     discretizationIntervals = {}
     discretizationDtype = []
     for i in range(data.shape[1]):
@@ -48,49 +151,77 @@ def process_adult(attribute_column, min_expected_value, max_number_intervals, th
         discretizationIntervals[feature_names[i]] = chi.frequency_matrix_intervals
         discretizationDtype.append((feature_names[i], 'i8'))
 
-    """
-    s = 0
-    for i in discretizationIntervals.keys():
-        s += len(discretizationIntervals[i])
-    print 'discretizationIntervals size:', s, 'intervals: ', discretizationIntervals
-    """
-
-    from featureslots import FeatureSlots
-    fs = FeatureSlots()
-    X_discreted = []
+    # addfeatures
+    from addfeatures import AddFeatures
+    af_model = AddFeatures()
+    X_parsed = []
     for i in range(data.shape[0]):
         input_stream = np.zeros((1,),dtype=object)
         input_stream[0] = np.asarray(data[i,:])
-        X_slots = fs.fit_transform(data=input_stream, dttyp=np.dtype(discretizationDtype), discret_intervals=discretizationIntervals)
-        X_discreted.append(X_slots)
+        X_slots = af_model.fit_transform(data=input_stream, dttyp=np.dtype(discretizationDtype), discret_intervals=discretizationIntervals)
+        X_parsed.append(X_slots)
 
     """
-    for g in X_discreted:
-        for v in g:
-            print fs.reversed_table[v],
-        print ''
-    """
-
-    X_combined = []
-    for i in range(len(X_discreted)):
-        combined_features = fs.combine_features(X_discreted[i])
-        X_combined.append(combined_features)
-
-    """
-    for g in X_combined:
-        for v in g:
-            print fs.reversed_table[v],
-        print ''
-    """
-
-    dataTrain = sparse_to_matrix(X_combined)
+    dv = DictVectorizer(sparse=False)
+    dataTrain = dv.fit_transform(X_parsed)
     labelTrain = Y[:,0]
+    """
 
+    # fm training
+    #print af_model.reversed_table
+    ori_features_len = len(set(af_model.reversed_table.keys()))
+    parsed_features_len = len(set(af_model.reversed_table.values()))
+    print "Features space transforms from %d-dim to %d-dim" % (ori_features_len, parsed_features_len)
+    dataTrain = sparse_to_matrix(X_parsed)
+    labelTrain = Y[:,0]
+    output_matrix(dataTrain, labelTrain)
+    sys.exit(0)
+    """
+    for i in range(dataTrain.shape[0]):
+        for j in range(dataTrain.shape[1]):
+            print dataTrain[i,j],
+        print ''
+    """
+
+    # kfold validation
     from factorization_machine import FactorizationMachineClassification
-    fm = FactorizationMachineClassification()
-    w0, w, v = fm.fit(np.mat(dataTrain), labelTrain, 3, 10000, 0.01)
-    pred_result = fm.predict(np.mat(dataTrain), w0, w, v)
-    print 1 - fm.get_accuracy(pred_result, labelTrain)
+    from sklearn.svm import SVC
+    from sklearn import metrics
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.cross_validation import StratifiedKFold
+
+    n_folds = 3
+
+    # This following models contains Sklearn models and FM model, pick one
+    # SK models
+    if mode == 'SK':
+        alphas = [0.5, 1, 5, 10, 100, 1000]
+        for alpha in alphas:
+            score_train = []
+            score_test = []
+            for i, (train_index, test_index) in enumerate(StratifiedKFold(np.asarray(labelTrain).flatten(), n_folds=n_folds, shuffle=True)):
+                #clf = SVC(class_weight='balanced', kernel='rbf', C=alpha)
+                clf = LogisticRegression(penalty='l1', C=alpha)
+                #clf = MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=(100, 3), random_state=1, max_iter=1000)
+                X_train, X_test = dataTrain[train_index], dataTrain[test_index]
+                y_train, y_test = labelTrain[train_index], labelTrain[test_index]
+                clf.fit(X_train, y_train)
+                pred_train = clf.predict(X_train)
+                pred_test = clf.predict(X_test)
+                score_train.append(metrics.accuracy_score(y_train, pred_train))
+                score_test.append(metrics.accuracy_score(y_test, pred_test))
+            print 'alpha:', alpha, 'Average accuracy, train: ', 1.*sum(score_train)/len(score_train), 'test: ', 1.*sum(score_test)/len(score_test)
+    elif mode == 'FM':
+        # FM model
+        fm = FactorizationMachineClassification()
+        for i, (train_index, test_index) in enumerate(StratifiedKFold(np.asarray(labelTrain).flatten(), n_folds=n_folds, shuffle=True)):
+            X_train, X_test = dataTrain[train_index], dataTrain[test_index]
+            y_train, y_test = labelTrain[train_index], labelTrain[test_index]
+            #w0, w, v = fm.fit_and_validate(np.mat(X_train), y_train, np.mat(X_test), y_test, 3, 10000, 0.01, True)
+            w0, w, v = fm.fit_and_validate(np.mat(X_train), y_train, np.mat(X_test), y_test, 3, 10000, 0.01)
+            break
+    else:
+        print 'Pick a mode [SK|FM]'
 
 
 def _readAdultDataSet(attribute_column=-1, attributes=None):
@@ -128,13 +259,14 @@ def _readAdultDataSet(attribute_column=-1, attributes=None):
 
     #pathfn = 'adult/adult.data'
     pathfn = 'adult/adult.small'
+    #pathfn = 'adult/adult.1w'
     data = []
     Y = []
 
     with open(pathfn, 'r') as f:
         for line in f:
             tmpdict = {}
-            tmp = line.replace(' ', '').strip().split(',')
+            tmp = line.replace(' ', '').replace(':', '-').strip().split(',')
             tmp = np.array(tuple(tmp), dtype=datatype)
             for g in attributes:
                 typ = g[0]
@@ -143,68 +275,21 @@ def _readAdultDataSet(attribute_column=-1, attributes=None):
                 if g[0] == 'pay' and value == '>50K':
                     Y.append(1)
                 elif g[0] == 'pay'  and value == '<=50K':
-                    Y.append(0)
+                    Y.append(-1)
                 elif value.dtype == np.dtype('S40'):
-                    tag = str(typ) + '\001' + str(value)
+                    #tag = str(typ) + BaseC.DISCRET_DELIMITER + str(value)
+                    tag = utils.mergeKeyValue(str(typ), str(value), 'discret')
                     tmpdict[tag] = 1
                 else:
                     tmpdict[typ] = value
             data.append(tmpdict)
 
-    from sklearn.feature_extraction import DictVectorizer
     dv = DictVectorizer(sparse=False)
     X = dv.fit_transform(data)
     return np.matrix(X, dtype='i8'), np.matrix(Y).T, dv.get_feature_names()
 
-def _readIrisDataset(attribute_column=-1):
-    '''
-    Reference: http://archive.ics.uci.edu/ml/machine-learning-databases/iris/
-    e.g.: 5.1,3.5,1.4,0.2,Iris-setosa
-        1. sepal length in cm   (index 0) a
-        2. sepal width in cm    (index 1) a
-        3. petal length in cm   (index 2) a
-        4. petal width in cm    (index 3) a
-        5. class:               (index 4) c
-        -- Iris Setosa
-        -- Iris Versicolour
-        -- Iris Virginica
-    :return:
-    '''
-
-    if attribute_column < -1 or attribute_column > 3:
-        utils.printf('ERROR: index {} is not valid in this dataset!'.format(attribute_column))
-        return
-    if attribute_column == -1:
-        attribute_columns = [0,1,2,3]
-        utils.printf('INFO: You are about to load the complete dataset, including all attribute columns.')
-    else:
-        attribute_columns = [attribute_column]
-
-    #pathfn = "data/bezdekIris.data"
-    pathfn = "data/iris.data"
-    data = []
-    vocab = {}
-    counter = 0
-    with open(pathfn, 'r') as f:
-        for line in f:
-            tmp = line.split(',')
-            class_label = tmp[4].strip().replace('\n','')
-            if class_label not in vocab:
-                vocab[class_label] = counter
-                counter += 1
-            data.append('{} {}'.format(' '.join(['{}'.format(float(tmp[x])) for x in attribute_columns]), vocab[class_label]))
-
-    m =  np.matrix(';'.join([x for x in data]))
-    utils.printf('Data: matrix {}x{}'.format(m.shape[0],m.shape[1]))
-    return m
-
 
 # ChiMerge paper: https://www.aaai.org/Papers/AAAI/1992/AAAI92-019.pdf
 if __name__ == '__main__':
-    process_adult(attribute_column=-1, min_expected_value=0.5, max_number_intervals=6, threshold=4.61, debug_info=False)
-    #example_chimerge_irisdb(attribute_column=1, min_expected_value=0.5, max_number_intervals=3, threshold=4.61, debug_info=True)
-    #example_chimerge_irisdb(attribute_column=1, min_expected_value=0.5, max_number_intervals=6, threshold=4.61)
-    # example_chimerge_irisdb(attribute_column=2, min_expected_value=0., max_number_intervals=6, threshold=4.61)
-    # example_chimerge_irisdb(attribute_column=3, min_expected_value=0., max_number_intervals=6, threshold=4.61)
-    # toi_example(min_expected_value=0.0, max_number_intervals=6, threshold=2.71)
-    # example_chi2_irisdb(alpha=0.5, delta=0.05, min_expected_value=0.1)
+    process_adult_bml(attribute_column=-1, min_expected_value=0.5, max_number_intervals=15, threshold=4.61, debug_info=False, mode='SK')
+    #process_adult_trad(attribute_column=-1, min_expected_value=0.5, max_number_intervals=6, threshold=4.61, debug_info=False)
