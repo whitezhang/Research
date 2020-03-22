@@ -121,6 +121,7 @@ def test_sage():
     static_config = static_config_t.StaticConfig()
     sage = sage_t.Sage(static_config)
     sage._preprocess_df_data()
+    sage._train_test_daily_return_value()
 
 if __name__ == '__main__':
     #main()
