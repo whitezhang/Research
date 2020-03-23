@@ -28,7 +28,8 @@ class SinaStockInterface():
         #self.dji = 'http://hq.sinajs.cn/list=int_dji'
         #self.nasdaq = 'http://hq.sinajs.cn/list=int_nasdaq'
         #self.history_data = 'http://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol=sz000001&scale=5&ma=5&datalen=1023'
-        self.history_format_url = 'http://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol={code}&scale={scale}&ma={mean}&datalen=1023'
+        self.history_stock_format_url = 'http://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol={code}&scale={scale}&ma={mean}&datalen=1023'
+        self.history_futures_format_url = 'http://stock2.finance.sina.com.cn/futures/api/json.php/IndexService.getInnerFuturesDailyKLine?symbol={code}'
 
         self.static_config = static_config
 
@@ -38,7 +39,7 @@ class SinaStockInterface():
         """
         # API说明: scale: 股票编号、分钟间隔（5、15、30、60）、均值（5、10、15、20、25）、查询个数点（最大值242）
         # 返回值: {u'volume': u'8089748600', u'ma_price5': 3088.25, u'high': u'3092.272', u'low': u'3075.384', u'close': u'3086.430', u'open': u'3091.493', u'day': u'2020-01-13 10:30:00', u'ma_volume5': 5826078340}
-        curl_url = self.history_format_url.format(code = code, scale = scale, mean = mean)
+        curl_url = self.history_stock_format_url.format(code = code, scale = scale, mean = mean)
         response = requests.get(curl_url)
         status_code = response.status_code
         text = response.text
